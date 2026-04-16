@@ -6,6 +6,17 @@ const fs = require('fs');
 const crypto = require('crypto');
 const PATHS = require('../config/paths.cjs');
 
+// Auto-bootstrap hq-data on fresh clones. No-op when data already exists.
+try {
+  const { initHqData } = require('../scripts/init-hq-data.cjs');
+  const result = initHqData();
+  if (result.created) {
+    console.log(`[Forge] Bootstrapped fresh hq-data at ${result.hqData} (${result.files.length} files)`);
+  }
+} catch (err) {
+  console.warn('[Forge] hq-data bootstrap failed:', err.message);
+}
+
 // --- Token Metering (standalone writer for Electron main process) ---
 const meteringDir = PATHS.metering();
 

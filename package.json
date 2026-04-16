@@ -9,6 +9,7 @@
     "build": "vite build && electron-builder",
     "vite": "vite",
     "electron": "electron .",
+    "init:hq-data": "node scripts/init-hq-data.cjs",
     "friday:setup": "bash friday-module/setup.sh"
   },
   "dependencies": {
