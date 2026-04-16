@@ -28,6 +28,9 @@ task-queue.json
 # Worktrees
 .worktrees/
 
+# Local dev tool scratch (superpowers skill brainstorm state)
+.superpowers/
+
 # OS
 .DS_Store
 Thumbs.db
