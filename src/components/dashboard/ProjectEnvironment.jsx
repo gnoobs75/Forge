@@ -95,6 +95,25 @@ export default function ProjectEnvironment({ project }) {
     catch (err) { flash(err.message); }
   };
 
+  const onRemoveLauncher = async (index) => {
+    playSound('click');
+    try {
+      const cfgPath = `projects/${project.slug}/project.json`;
+      const read = await api.hq.readFile(cfgPath);
+      if (!read?.ok) { flash('Could not read project.json'); return; }
+      let cfg;
+      try { cfg = JSON.parse(read.data); }
+      catch { flash('project.json is not valid JSON'); return; }
+      const existing = Array.isArray(cfg.launchers) ? cfg.launchers : [];
+      if (index < 0 || index >= existing.length) return;
+      cfg.launchers = existing.filter((_, i) => i !== index);
+      const write = await api.hq.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
+      if (!write?.ok) flash(write?.error || 'Could not save project.json');
+    } catch (err) {
+      flash(err.message);
+    }
+  };
+
   const onAddLauncher = async () => {
     playSound('click');
     try {
@@ -169,24 +188,37 @@ export default function ProjectEnvironment({ project }) {
               const status = portNum != null ? portStatus[portNum] : null;
               const dotColor = status?.up ? '#22C55E' : (portNum != null ? '#6B7280' : 'transparent');
               return (
-                <button
+                <div
                   key={i}
-                  onClick={() => onRunLauncher(l.script)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-forge-border bg-forge-bg/50
-                             hover:border-forge-accent-blue/50 hover:bg-forge-bg transition-all text-[11px]"
-                  title={`Run ${l.script}`}
+                  className="group flex items-center rounded-lg border border-forge-border bg-forge-bg/50
+                             hover:border-forge-accent-blue/50 hover:bg-forge-bg transition-all"
                 >
-                  {portNum != null && (
-                    <span
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: dotColor }}
-                    />
-                  )}
-                  <span className="font-medium text-forge-text-primary">{l.name}</span>
-                  {portNum != null && (
-                    <span className="text-[10px] text-forge-text-muted font-mono">:{portNum}</span>
-                  )}
-                </button>
+                  <button
+                    onClick={() => onRunLauncher(l.script)}
+                    className="flex items-center gap-2 pl-3 pr-2 py-1.5 text-[11px]"
+                    title={`Run ${l.script}`}
+                  >
+                    {portNum != null && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: dotColor }}
+                      />
+                    )}
+                    <span className="font-medium text-forge-text-primary">{l.name}</span>
+                    {portNum != null && (
+                      <span className="text-[10px] text-forge-text-muted font-mono">:{portNum}</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemoveLauncher(i); }}
+                    className="px-2 py-1.5 text-[11px] text-forge-text-muted
+                               hover:text-red-400 transition-colors opacity-50 group-hover:opacity-100"
+                    title={`Remove ${l.name}`}
+                    aria-label={`Remove ${l.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
               );
             })}
             <button

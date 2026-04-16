@@ -7,7 +7,7 @@ export const BRAIN_PROVIDERS = {
     color: '#D97706',
     active: true,
     models: [
-      { id: 'opus', name: 'Opus 4.6', desc: 'Most capable. Complex reasoning, architecture.', tier: 'premium', color: '#D97706' },
+      { id: 'opus', name: 'Opus 4.7', desc: 'Most capable. Complex reasoning, architecture.', tier: 'premium', color: '#D97706' },
       { id: 'sonnet', name: 'Sonnet 4.6', desc: 'Balanced. Great for most tasks.', tier: 'standard', color: '#3B82F6' },
       { id: 'haiku', name: 'Haiku 4.5', desc: 'Fastest. Quick checks, simple tasks.', tier: 'economy', color: '#22C55E' },
     ],
@@ -64,6 +64,6 @@ export function getModelDisplay(brain) {
   const b = brain || DEFAULT_BRAIN;
   const provider = BRAIN_PROVIDERS[b.provider] || BRAIN_PROVIDERS.claude;
   const model = provider.models.find(m => m.id === b.model) || provider.models[0];
-  if (!model) return { name: 'Opus 4.6', color: '#D97706', tier: 'premium' };
+  if (!model) return { name: 'Opus 4.7', color: '#D97706', tier: 'premium' };
   return { name: model.name, color: model.color, tier: model.tier };
 }
