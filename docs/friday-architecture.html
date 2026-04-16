@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F.R.I.D.A.Y. — System Schematic</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --friday-primary: #D946EF;
+    --friday-glow: #D946EF60;
+    --friday-deep: #7E22CE;
+    --friday-light: #F0ABFC;
+    --bg-void: #06060C;
+    --bg-panel: #0C0C18;
+    --bg-card: #111125;
+    --bg-card-hover: #16163A;
+    --border-dim: #1E1E40;
+    --border-active: #D946EF40;
+    --text-primary: #E8E8F0;
+    --text-secondary: #9898B8;
+    --text-muted: #5A5A78;
+    --green: #22C55E;
+    --amber: #EAB308;
+    --red: #EF4444;
+    --blue: #3B82F6;
+    --cyan: #06B6D4;
+    --orange: #F97316;
+  }
+
+  html { background: var(--bg-void); }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    color: var(--text-primary);
+    background: var(--bg-void);
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* ── Animated background ── */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, #D946EF08 0%, transparent 60%),
+      radial-gradient(circle at 20% 80%, #7E22CE06 0%, transparent 40%),
+      linear-gradient(0deg, transparent 49.5%, #1E1E4010 49.5%, #1E1E4010 50.5%, transparent 50.5%),
+      linear-gradient(90deg, transparent 49.5%, #1E1E4010 49.5%, #1E1E4010 50.5%, transparent 50.5%);
+    background-size: 100% 100%, 100% 100%, 60px 60px, 60px 60px;
+  }
+
+  .scan-line {
+    position: fixed; left: 0; right: 0; height: 2px; z-index: 1; pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--friday-glow), transparent);
+    animation: scanDown 8s linear infinite;
+    opacity: 0.3;
+  }
+  @keyframes scanDown { 0% { top: -2px; } 100% { top: 100vh; } }
+
+  /* ── Layout ── */
+  .container { position: relative; z-index: 2; max-width: 1600px; margin: 0 auto; padding: 24px; }
+
+  /* ── Header ── */
+  .header {
+    text-align: center; padding: 48px 0 36px; position: relative;
+  }
+  .header::after {
+    content: ''; position: absolute; bottom: 0; left: 10%; right: 10%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--friday-primary), transparent);
+  }
+  .header h1 {
+    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 42px;
+    letter-spacing: 12px; text-transform: uppercase;
+    background: linear-gradient(135deg, var(--friday-light), var(--friday-primary), var(--friday-deep));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 60px var(--friday-glow);
+    animation: titlePulse 4s ease-in-out infinite;
+  }
+  @keyframes titlePulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.2); }
+  }
+  .header .subtitle {
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-muted);
+    letter-spacing: 6px; margin-top: 8px;
+  }
+  .header .tagline {
+    font-size: 16px; color: var(--text-secondary); margin-top: 12px; font-weight: 300;
+  }
+
+  /* ── Orb ── */
+  .orb-container { display: flex; justify-content: center; margin: -12px 0 12px; }
+  .orb {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, var(--friday-light), var(--friday-primary), var(--friday-deep));
+    box-shadow: 0 0 40px var(--friday-glow), 0 0 80px #D946EF20, inset 0 0 20px #ffffff10;
+    animation: orbFloat 3s ease-in-out infinite;
+  }
+  @keyframes orbFloat {
+    0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 0 40px var(--friday-glow); }
+    50% { transform: translateY(-6px) scale(1.02); box-shadow: 0 0 60px var(--friday-glow), 0 0 100px #D946EF15; }
+  }
+
+  /* ── Section headers ── */
+  .section {
+    margin: 40px 0 20px; position: relative;
+  }
+  .section-title {
+    font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 600;
+    letter-spacing: 4px; text-transform: uppercase; color: var(--friday-primary);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-title::before {
+    content: ''; width: 20px; height: 1px; background: var(--friday-primary);
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--friday-primary)40, transparent);
+  }
+
+  /* ── Node grid ── */
+  .node-grid {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+  .node-grid.wide {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  }
+
+  /* ── Node card ── */
+  .node {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .node::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--node-accent, var(--friday-primary));
+    opacity: 0; transition: opacity 0.25s;
+  }
+  .node:hover, .node.expanded {
+    background: var(--bg-card-hover);
+    border-color: var(--border-active);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px #00000060, 0 0 20px var(--node-accent-glow, #D946EF10);
+  }
+  .node:hover::before, .node.expanded::before { opacity: 1; }
+
+  .node-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .node-icon {
+    width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+    background: var(--node-accent, var(--friday-primary))15;
+    border: 1px solid var(--node-accent, var(--friday-primary))30;
+    color: var(--node-accent, var(--friday-primary));
+  }
+  .node-name {
+    font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 600;
+    letter-spacing: 1px; color: var(--text-primary);
+  }
+  .node-role {
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-muted);
+    letter-spacing: 1px;
+  }
+  .node-summary {
+    font-size: 15px; color: var(--text-secondary); line-height: 1.5;
+  }
+
+  .node-details {
+    max-height: 0; overflow: hidden; transition: max-height 0.4s ease, margin 0.3s ease;
+    margin-top: 0;
+  }
+  .node.expanded .node-details {
+    max-height: 800px; margin-top: 12px;
+  }
+  .node-details-inner {
+    border-top: 1px solid var(--border-dim); padding-top: 12px;
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; line-height: 1.7;
+    color: var(--text-secondary);
+  }
+  .detail-label {
+    color: var(--friday-primary); font-weight: 600; display: block; margin-top: 8px;
+    font-size: 15px; letter-spacing: 2px; text-transform: uppercase;
+  }
+  .detail-label:first-child { margin-top: 0; }
+  .detail-list { margin: 4px 0 0 12px; }
+  .detail-list li { margin: 2px 0; }
+  .detail-list li::marker { color: var(--node-accent, var(--friday-primary)); }
+
+  code {
+    background: #0a0a1a; padding: 1px 5px; border-radius: 3px; font-size: 15px;
+    color: var(--friday-light); font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── Flow diagram (boot sequence) ── */
+  .flow {
+    display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+    padding: 16px; background: var(--bg-card); border: 1px solid var(--border-dim);
+    border-radius: 8px; justify-content: center;
+  }
+  .flow-step {
+    display: flex; align-items: center; gap: 0;
+  }
+  .flow-node {
+    padding: 6px 14px; border-radius: 6px; font-family: 'Share Tech Mono', monospace;
+    font-size: 15px; white-space: nowrap;
+    border: 1px solid var(--border-dim); background: var(--bg-panel);
+    color: var(--text-secondary); transition: all 0.3s;
+    cursor: default;
+  }
+  .flow-node:hover {
+    border-color: var(--friday-primary); color: var(--friday-light);
+    box-shadow: 0 0 10px var(--friday-glow);
+  }
+  .flow-arrow {
+    width: 24px; text-align: center; color: var(--text-muted); font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  /* ── Voice pipeline ── */
+  .pipeline {
+    display: flex; align-items: stretch; gap: 0; overflow-x: auto;
+    padding: 20px 16px; background: var(--bg-card); border: 1px solid var(--border-dim);
+    border-radius: 8px;
+  }
+  .pipe-stage {
+    flex: 1; min-width: 120px; text-align: center; position: relative;
+    padding: 12px 8px;
+  }
+  .pipe-stage:not(:last-child)::after {
+    content: ''; position: absolute; right: -1px; top: 50%; transform: translateY(-50%);
+    width: 0; height: 0; border: 6px solid transparent;
+    border-left-color: var(--friday-primary); z-index: 1; opacity: 0.6;
+  }
+  .pipe-stage:not(:last-child)::before {
+    content: ''; position: absolute; right: 0; top: 20%; bottom: 20%;
+    width: 1px; background: var(--border-dim);
+  }
+  .pipe-icon { font-size: 22px; margin-bottom: 6px; }
+  .pipe-label {
+    font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 600;
+    letter-spacing: 1px; color: var(--friday-light); margin-bottom: 4px;
+  }
+  .pipe-desc {
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  /* ── Prompt stack ── */
+  .prompt-stack {
+    display: flex; flex-direction: column; gap: 0;
+    background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 8px;
+    overflow: hidden;
+  }
+  .prompt-layer {
+    padding: 14px 20px; display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid var(--border-dim); transition: background 0.2s;
+    cursor: default;
+  }
+  .prompt-layer:last-child { border-bottom: none; }
+  .prompt-layer:hover { background: var(--bg-card-hover); }
+  .prompt-order {
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-family: 'Orbitron', sans-serif; font-size: 15px;
+    font-weight: 700; flex-shrink: 0;
+    background: var(--layer-color, var(--friday-primary))15;
+    border: 1px solid var(--layer-color, var(--friday-primary))40;
+    color: var(--layer-color, var(--friday-primary));
+  }
+  .prompt-info { flex: 1; }
+  .prompt-name {
+    font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 600;
+    color: var(--layer-color, var(--friday-primary)); letter-spacing: 1px;
+  }
+  .prompt-desc {
+    font-size: 15px; color: var(--text-secondary); margin-top: 2px;
+  }
+  .prompt-size {
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* ── Agent roster ── */
+  .agent-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px;
+  }
+  .agent-chip {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 6px;
+    transition: all 0.2s; cursor: default;
+  }
+  .agent-chip:hover {
+    border-color: var(--agent-color); transform: translateY(-1px);
+    box-shadow: 0 2px 12px #00000040;
+  }
+  .agent-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--agent-color);
+  }
+  .agent-info { font-size: 15px; }
+  .agent-name { color: var(--text-primary); font-weight: 600; }
+  .agent-role { color: var(--text-muted); font-size: 15px; }
+
+  /* ── Two-track voice ── */
+  .dual-track {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  @media (max-width: 900px) { .dual-track { grid-template-columns: 1fr; } }
+  .track {
+    background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 8px;
+    padding: 20px; position: relative;
+  }
+  .track-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 4px; font-family: 'Orbitron', sans-serif;
+    font-size: 15px; font-weight: 600; letter-spacing: 2px; margin-bottom: 12px;
+  }
+  .track h3 {
+    font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 600;
+    margin-bottom: 8px; color: var(--text-primary); letter-spacing: 1px;
+  }
+  .track p {
+    font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 8px;
+  }
+  .track-features {
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-muted);
+    line-height: 1.7; margin-top: 8px;
+  }
+  .track-features li { margin: 3px 0; list-style: none; }
+  .track-features li::before { content: '> '; color: var(--friday-primary); }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+    margin: 32px 0 16px; font-family: 'Share Tech Mono', monospace; font-size: 15px;
+    color: var(--text-muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center; padding: 32px 0 24px;
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-muted);
+    border-top: 1px solid var(--border-dim); margin-top: 48px;
+  }
+
+  /* ── Expand hint ── */
+  .expand-hint {
+    position: absolute; top: 12px; right: 12px;
+    font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--text-muted);
+    opacity: 0; transition: opacity 0.2s; letter-spacing: 1px;
+  }
+  .node:hover .expand-hint { opacity: 1; }
+  .node.expanded .expand-hint { opacity: 1; color: var(--friday-primary); }
+
+  /* ── Animations ── */
+  .fade-in { opacity: 0; transform: translateY(12px); animation: fadeIn 0.5s ease forwards; }
+  @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+  .stagger-1 { animation-delay: 0.05s; } .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; } .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; } .stagger-6 { animation-delay: 0.3s; }
+  .stagger-7 { animation-delay: 0.35s; } .stagger-8 { animation-delay: 0.4s; }
+  .stagger-9 { animation-delay: 0.45s; } .stagger-10 { animation-delay: 0.5s; }
+  .stagger-11 { animation-delay: 0.55s; } .stagger-12 { animation-delay: 0.6s; }
+
+  /* ── Routing table ── */
+  .route-table {
+    width: 100%; border-collapse: collapse; font-family: 'Share Tech Mono', monospace;
+    font-size: 15px; background: var(--bg-card); border-radius: 8px; overflow: hidden;
+  }
+  .route-table th {
+    background: var(--bg-panel); padding: 10px 14px; text-align: left;
+    font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--friday-primary);
+    border-bottom: 1px solid var(--border-dim);
+  }
+  .route-table td {
+    padding: 8px 14px; border-bottom: 1px solid var(--border-dim);
+    color: var(--text-secondary); vertical-align: top;
+  }
+  .route-table tr:last-child td { border-bottom: none; }
+  .route-table tr:hover td { background: var(--bg-card-hover); }
+  .route-table .priority-num {
+    font-family: 'Orbitron', sans-serif; font-weight: 700; color: var(--friday-light);
+  }
+  .route-table .route-target {
+    padding: 2px 8px; border-radius: 3px; font-size: 15px; font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .route-target.claude { background: #3B82F615; color: #60A5FA; border: 1px solid #3B82F630; }
+  .route-target.grok { background: #F9731615; color: #FB923C; border: 1px solid #F9731630; }
+
+  /* ── Pipeline flow (vertical) ── */
+  .vflow {
+    background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 8px;
+    padding: 20px; font-family: 'Share Tech Mono', monospace; font-size: 15px;
+  }
+  .vflow-track {
+    margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-dim);
+  }
+  .vflow-track:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .vflow-label {
+    font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 600;
+    letter-spacing: 2px; margin-bottom: 10px;
+  }
+  .vflow-steps {
+    display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+  }
+  .vflow-node {
+    padding: 5px 12px; border-radius: 5px; white-space: nowrap;
+    border: 1px solid var(--border-dim); background: var(--bg-panel);
+    color: var(--text-secondary); font-size: 15px;
+  }
+  .vflow-arrow { padding: 0 6px; color: var(--text-muted); font-size: 15px; }
+  .vflow-branch { padding: 0 4px; color: var(--friday-primary); font-size: 15px; }
+
+  /* ── Pulse dots ── */
+  .pulse-dot {
+    width: 6px; height: 6px; border-radius: 50%; display: inline-block;
+    animation: pulseDot 2s ease-in-out infinite;
+  }
+  @keyframes pulseDot { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+  .hq-connection {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 0; align-items: center;
+    background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 8px;
+    padding: 20px; margin-bottom: 12px;
+  }
+  .hq-side { text-align: center; }
+  .hq-side h4 {
+    font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 600;
+    letter-spacing: 2px; margin-bottom: 6px;
+  }
+  .hq-connector {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 20px;
+  }
+  .hq-line {
+    width: 80px; height: 2px;
+    background: linear-gradient(90deg, var(--friday-primary), var(--cyan));
+    position: relative; overflow: visible;
+  }
+  .hq-line::after {
+    content: ''; position: absolute; top: -2px; width: 6px; height: 6px;
+    background: var(--friday-light); border-radius: 50%;
+    animation: dataFlow 2s linear infinite;
+  }
+  @keyframes dataFlow { 0% { left: 0; } 100% { left: calc(100% - 6px); } }
+  .hq-label {
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="scan-line"></div>
+
+<div class="container">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="header fade-in">
+    <div class="orb-container"><div class="orb"></div></div>
+    <h1>F.R.I.D.A.Y.</h1>
+    <div class="subtitle">FEMALE REPLACEMENT INTELLIGENT DIGITAL ASSISTANT YOUTH</div>
+    <div class="tagline">Complete System Architecture &mdash; Council of Elrond Integration</div>
+  </div>
+
+  <!-- ═══ BOOT SEQUENCE ═══ -->
+  <div class="section fade-in stagger-1">
+    <div class="section-title">Boot Sequence</div>
+  </div>
+  <div class="flow fade-in stagger-2">
+    <div class="flow-step"><div class="flow-node" style="border-color:#D946EF40;color:#F0ABFC">SignalBus</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node">Clearance</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node">AuditLog</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node">Notifications</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node">Protocols</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node">Directives</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#3B82F640;color:#60A5FA">Memory</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#06B6D440;color:#22D3EE">SMARTS</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#22C55E40;color:#4ADE80">Sensorium</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#EAB30840;color:#FACC15">Genesis</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#F9731640;color:#FB923C">Vox</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#D946EF40;color:#F0ABFC">Studio Ctx</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#D946EF;color:#F0ABFC;box-shadow:0 0 10px #D946EF30">Cortex</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#EF444440;color:#F87171">Arc Rhythm</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node">Modules</div><div class="flow-arrow">&rarr;</div></div>
+    <div class="flow-step"><div class="flow-node" style="border-color:#22C55E;color:#4ADE80;box-shadow:0 0 10px #22C55E30">session:start</div></div>
+  </div>
+
+  <!-- ═══ CORE SUBSYSTEMS ═══ -->
+  <div class="section fade-in stagger-2">
+    <div class="section-title">Core Subsystems</div>
+  </div>
+  <div class="node-grid fade-in stagger-3">
+
+    <!-- Cortex -->
+    <div class="node" style="--node-accent:#D946EF;--node-accent-glow:#D946EF20" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F9E0;</div>
+        <div><div class="node-name">CORTEX</div><div class="node-role">LLM BRAIN</div></div>
+      </div>
+      <div class="node-summary">Dual-mode chat engine. Text via AI SDK streamText, Voice via Grok Realtime WebSocket. Enriches every prompt with identity + knowledge + environment.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Chat Modes</span>
+        <ul class="detail-list">
+          <li><code>chatStream()</code> &rarr; TextWorker (AI SDK) &mdash; CLI/TUI</li>
+          <li><code>chatStreamVoice()</code> &rarr; VoiceWorker (Grok WS) &mdash; Browser PTT</li>
+        </ul>
+        <span class="detail-label">Prompt Enrichment (per turn)</span>
+        <ul class="detail-list">
+          <li>Genesis identity prompt (~3-5KB)</li>
+          <li>SMARTS pinned + FTS5 matched (~4KB max)</li>
+          <li>Studio Context &mdash; HQ data briefing (~2-3KB)</li>
+          <li>Sensorium env block (date, CPU, mem ~500B)</li>
+          <li>Voice Identity + Delivery Rules (voice mode only)</li>
+        </ul>
+        <span class="detail-label">History Management</span>
+        <ul class="detail-list">
+          <li>Token budget: 128k max, auto-compacts at threshold</li>
+          <li>Keeps min 4 messages on compaction</li>
+          <li>Optional summarization callback</li>
+        </ul>
+        <span class="detail-label">File</span>
+        <code>src/core/cortex.ts</code>
+      </div></div>
+    </div>
+
+    <!-- SignalBus -->
+    <div class="node" style="--node-accent:#F97316;--node-accent-glow:#F9731620" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x26A1;</div>
+        <div><div class="node-name">SIGNALBUS</div><div class="node-role">EVENT SYSTEM</div></div>
+      </div>
+      <div class="node-summary">Typed event hub connecting all subsystems. Error-isolated handlers. Custom signal namespace for extensions.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Core Signals</span>
+        <ul class="detail-list">
+          <li><code>file:changed</code> / <code>file:created</code> / <code>file:deleted</code></li>
+          <li><code>test:passed</code> / <code>test:failed</code></li>
+          <li><code>session:start</code> / <code>session:end</code></li>
+          <li><code>tool:executing</code> / <code>tool:completed</code></li>
+          <li><code>command:pre-execute</code> / <code>command:post-execute</code></li>
+        </ul>
+        <span class="detail-label">Custom Signals</span>
+        <ul class="detail-list">
+          <li><code>custom:vox-mode-changed</code></li>
+          <li><code>custom:forge-restart-requested</code></li>
+          <li><code>custom:arc-rhythm-executed</code> / <code>-failed</code> / <code>-paused</code></li>
+        </ul>
+        <span class="detail-label">Pattern</span>
+        Handler errors caught &amp; logged, never propagate. Supports <code>on()</code>, <code>off()</code>, <code>once()</code>.
+        <br><span class="detail-label">File</span>
+        <code>src/core/events.ts</code>
+      </div></div>
+    </div>
+
+    <!-- Genesis -->
+    <div class="node" style="--node-accent:#EAB308;--node-accent-glow:#EAB30820" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F31F;</div>
+        <div><div class="node-name">GENESIS</div><div class="node-role">IDENTITY PROMPT</div></div>
+      </div>
+      <div class="node-summary">Friday's core personality loaded from <code>~/.friday/GENESIS.md</code>. Protected with chmod 600. Seed template for initial creation.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Methods</span>
+        <ul class="detail-list">
+          <li><code>loadGenesis(path)</code> &mdash; read identity file</li>
+          <li><code>seedGenesis(path)</code> &mdash; create from template</li>
+          <li><code>updateGenesis(path)</code> &mdash; overwrite with latest</li>
+          <li><code>checkGenesis(path)</code> &mdash; validate existence + perms</li>
+        </ul>
+        <span class="detail-label">Protection</span>
+        Directory: 0o700, File: 0o600. Added to filesystem module&rsquo;s protected paths &mdash; blocks read/write/delete via tools.
+        <br><span class="detail-label">Env Override</span>
+        <code>FRIDAY_GENESIS_PATH</code>
+        <br><span class="detail-label">File</span>
+        <code>src/core/genesis.ts</code>
+      </div></div>
+    </div>
+
+    <!-- Clearance -->
+    <div class="node" style="--node-accent:#EF4444;--node-accent-glow:#EF444420" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F512;</div>
+        <div><div class="node-name">CLEARANCE</div><div class="node-role">PERMISSION GATES</div></div>
+      </div>
+      <div class="node-summary">12 permission types. Every tool, protocol, and directive must pass clearance before execution. All-or-nothing checking.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Permissions (12)</span>
+        <ul class="detail-list">
+          <li><code>read-fs</code>, <code>write-fs</code>, <code>delete-fs</code></li>
+          <li><code>exec-shell</code>, <code>network</code></li>
+          <li><code>git-read</code>, <code>git-write</code></li>
+          <li><code>provider</code>, <code>system</code></li>
+          <li><code>forge-modify</code>, <code>email-send</code>, <code>audio-output</code></li>
+        </ul>
+        <span class="detail-label">Interface</span>
+        <code>check(name)</code> &rarr; { granted, reason? }<br>
+        <code>checkAll(names)</code> &rarr; first denial stops
+        <br><span class="detail-label">File</span>
+        <code>src/core/clearance.ts</code>
+      </div></div>
+    </div>
+
+    <!-- Directives -->
+    <div class="node" style="--node-accent:#8B5CF6;--node-accent-glow:#8B5CF620" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4DC;</div>
+        <div><div class="node-name">DIRECTIVES</div><div class="node-role">AUTONOMOUS RULES</div></div>
+      </div>
+      <div class="node-summary">Signal&rarr;action automation without LLM. Dynamic subscriptions via store change listeners. Clearance-gated execution.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Trigger Types</span>
+        <ul class="detail-list">
+          <li><code>signal</code> &mdash; fires on SignalBus events</li>
+          <li><code>schedule</code> &mdash; cron-based timing</li>
+          <li><code>pattern</code> &mdash; file/content pattern match</li>
+          <li><code>manual</code> &mdash; user-invoked only</li>
+        </ul>
+        <span class="detail-label">Action Types</span>
+        <ul class="detail-list">
+          <li><code>protocol</code> &mdash; /command dispatch</li>
+          <li><code>tool</code> &mdash; invoke registered tool</li>
+          <li><code>prompt</code> &mdash; send to Cortex for LLM processing</li>
+          <li><code>sequence</code> &mdash; chained steps (planned)</li>
+        </ul>
+        <span class="detail-label">File</span>
+        <code>src/directives/</code>
+      </div></div>
+    </div>
+
+    <!-- Arc Rhythm -->
+    <div class="node" style="--node-accent:#EF4444;--node-accent-glow:#EF444420" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4AB;</div>
+        <div><div class="node-name">ARC RHYTHM</div><div class="node-role">HEARTBEAT SCHEDULER</div></div>
+      </div>
+      <div class="node-summary">60-second cron ticker. Auto-pauses after 5 consecutive failures. Fires prompts, tools, or protocols on schedule.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Architecture</span>
+        <ul class="detail-list">
+          <li>RhythmStore &mdash; SQLite persistence (shares Memory DB)</li>
+          <li>RhythmScheduler &mdash; 60s tick, reentrant guard</li>
+          <li>RhythmExecutor &mdash; dispatches actions</li>
+        </ul>
+        <span class="detail-label">Safety</span>
+        <ul class="detail-list">
+          <li>MAX_CONSECUTIVE_FAILURES: 5 &rarr; auto-pause</li>
+          <li>Inflight Set prevents concurrent execution</li>
+          <li>Emits <code>custom:arc-rhythm-paused</code></li>
+        </ul>
+        <span class="detail-label">File</span>
+        <code>src/arc-rhythm/</code>
+      </div></div>
+    </div>
+
+    <!-- Sensorium -->
+    <div class="node" style="--node-accent:#22C55E;--node-accent-glow:#22C55E20" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4E1;</div>
+        <div><div class="node-name">SENSORIUM</div><div class="node-role">SENSOR SUITE</div></div>
+      </div>
+      <div class="node-summary">Dual-cadence system polling. CPU, memory, disk, Docker, ports, git. Hysteresis alerts prevent notification spam.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Polling Cadence</span>
+        <ul class="detail-list">
+          <li>Fast tick: 30s (CPU delta, memory, git)</li>
+          <li>Slow tick: 5min (Docker, ports, disk)</li>
+        </ul>
+        <span class="detail-label">Data Gathered</span>
+        <ul class="detail-list">
+          <li>CPU: cores, load, usage%, speed</li>
+          <li>Memory: total, used, available</li>
+          <li>Disk: total, used, available</li>
+          <li>Docker containers, open ports, git branches</li>
+        </ul>
+        <span class="detail-label">Output</span>
+        <code>getContextBlock()</code> &rarr; injected into system prompt every turn
+        <br><span class="detail-label">File</span>
+        <code>src/sensorium/</code>
+      </div></div>
+    </div>
+
+    <!-- Audit Logger -->
+    <div class="node" style="--node-accent:#9898B8;--node-accent-glow:#9898B820" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4CB;</div>
+        <div><div class="node-name">AUDIT LOGGER</div><div class="node-role">ACTION TRACKING</div></div>
+      </div>
+      <div class="node-summary">Every tool execution, protocol dispatch, directive fire, and inference call is logged with timestamp, source, and success/failure.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Entry Fields</span>
+        <code>action</code>, <code>source</code>, <code>detail</code>, <code>success</code>, <code>metadata?</code>, <code>timestamp?</code>
+        <br><span class="detail-label">Example Actions</span>
+        <ul class="detail-list">
+          <li><code>tool:executing</code> / <code>tool:completed</code></li>
+          <li><code>inference:start</code> / <code>inference:complete</code> / <code>inference:error</code></li>
+          <li><code>directive:fire</code></li>
+        </ul>
+        <span class="detail-label">File</span>
+        <code>src/audit/logger.ts</code>
+      </div></div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="node" style="--node-accent:#06B6D4;--node-accent-glow:#06B6D420" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F514;</div>
+        <div><div class="node-name">NOTIFICATIONS</div><div class="node-role">MULTI-CHANNEL ALERTS</div></div>
+      </div>
+      <div class="node-summary">Terminal, audit log, voice (Vox TTS), Electron push, and future Slack/webhook channels. Level-based routing.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Channels</span>
+        <ul class="detail-list">
+          <li>TerminalChannel (stderr)</li>
+          <li>AuditLogChannel (writes to AuditLogger)</li>
+          <li>VoiceChannel (invokes Vox for spoken alerts)</li>
+          <li>PushNotificationChannel (Electron/WebSocket)</li>
+        </ul>
+        <span class="detail-label">Levels</span>
+        <code>info</code>, <code>warning</code>, <code>error</code>
+        <br><span class="detail-label">File</span>
+        <code>src/core/notifications.ts</code>
+      </div></div>
+    </div>
+
+  </div>
+
+  <!-- ═══ MEMORY SYSTEMS ═══ -->
+  <div class="section fade-in stagger-3">
+    <div class="section-title">Memory &amp; Knowledge Systems</div>
+  </div>
+  <div class="node-grid wide fade-in stagger-4">
+
+    <!-- SQLiteMemory -->
+    <div class="node" style="--node-accent:#3B82F6;--node-accent-glow:#3B82F620" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4BE;</div>
+        <div><div class="node-name">SQLITE MEMORY</div><div class="node-role">PERSISTENT STATE</div></div>
+      </div>
+      <div class="node-summary">KV store + conversation history + FTS5 semantic search. Scoped namespaces for tool isolation. Auto-prunes to 500 conversations.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Tables</span>
+        <ul class="detail-list">
+          <li><code>kv</code> &mdash; namespace/key/value/updated_at (scoped KV store)</li>
+          <li><code>conversations</code> &mdash; id/started_at/ended_at/provider/model/messages/summary</li>
+          <li><code>embeddings</code> &mdash; id/namespace/content/metadata</li>
+          <li><code>embeddings_fts</code> &mdash; FTS5 virtual table, synced manually</li>
+        </ul>
+        <span class="detail-label">Scoped Access</span>
+        <code>memory.scoped("tools")</code> &rarr; namespace-prefixed get/set/delete/list
+        <br><span class="detail-label">Limits</span>
+        MAX_CONVERSATIONS: 500, auto-pruned oldest first
+        <br><span class="detail-label">File</span>
+        <code>src/core/memory.ts</code>
+      </div></div>
+    </div>
+
+    <!-- SMARTS -->
+    <div class="node" style="--node-accent:#06B6D4;--node-accent-glow:#06B6D420" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4A1;</div>
+        <div><div class="node-name">SMARTS</div><div class="node-role">KNOWLEDGE BASE</div></div>
+      </div>
+      <div class="node-summary">FTS5-indexed persistent knowledge. Markdown files with YAML frontmatter. Session-based expiry for auto entries, manual entries never expire.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Entry Structure</span>
+        name, domain, tags[], content (markdown), confidence (0-1), source (manual/auto), sessionId
+        <br><span class="detail-label">Expiry Strategy</span>
+        <ul class="detail-list">
+          <li>Session counter increments each boot</li>
+          <li>Auto entries expire after 5 sessions</li>
+          <li>Manual entries &mdash; permanent</li>
+        </ul>
+        <span class="detail-label">Injection</span>
+        Cortex calls <code>findRelevant(userMessage)</code> each turn. Up to 8 pinned + FTS5 top-K, capped at ~4KB.
+        <br><span class="detail-label">File</span>
+        <code>src/smarts/</code>
+      </div></div>
+    </div>
+
+    <!-- SMARTS Curator -->
+    <div class="node" style="--node-accent:#06B6D4;--node-accent-glow:#06B6D420" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F9D0;</div>
+        <div><div class="node-name">CURATOR</div><div class="node-role">KNOWLEDGE EXTRACTOR</div></div>
+      </div>
+      <div class="node-summary">Autonomous extraction of durable insights from conversations. Triple durability gate: lost-if-forgotten, stable-over-time, non-obvious.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Durability Gates (all 3 must pass)</span>
+        <ul class="detail-list">
+          <li><b>Lost-if-forgotten:</b> Can't rediscover from code/docs</li>
+          <li><b>Stable over time:</b> Accurate 10+ sessions from now</li>
+          <li><b>Non-obvious:</b> Senior dev wouldn't independently arrive at it</li>
+        </ul>
+        <span class="detail-label">Extracts</span>
+        Technical gotchas, decision rationale (WHY), user preferences
+        <br><span class="detail-label">Rejects</span>
+        System snapshots, project self-descriptions, conversation ephemera
+        <br><span class="detail-label">File</span>
+        <code>src/smarts/curator.ts</code>
+      </div></div>
+    </div>
+
+    <!-- Deja Vu -->
+    <div class="node" style="--node-accent:#7C3AED;--node-accent-glow:#7C3AED20" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F52E;</div>
+        <div><div class="node-name">DEJA VU</div><div class="node-role">CONVERSATION RECALL</div></div>
+      </div>
+      <div class="node-summary">FTS5 search across past conversation summaries. Full transcript replay by session ID. Registered as a Cortex tool.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Modes</span>
+        <ul class="detail-list">
+          <li><code>search</code> &mdash; FTS5 query on summaries, returns top 5-20 results with scores</li>
+          <li><code>recall</code> &mdash; full transcript by sessionId (first 50 messages, 500 chars each)</li>
+        </ul>
+        <span class="detail-label">Usage</span>
+        Friday can search her own conversation history: "I remember we talked about..."
+        <br><span class="detail-label">File</span>
+        <code>src/core/recall-tool.ts</code>
+      </div></div>
+    </div>
+
+    <!-- History Manager -->
+    <div class="node" style="--node-accent:#3B82F6;--node-accent-glow:#3B82F620" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4DA;</div>
+        <div><div class="node-name">HISTORY</div><div class="node-role">TOKEN-BUDGET CONTEXT</div></div>
+      </div>
+      <div class="node-summary">Conversation history with automatic compaction. Keeps context within 128k token budget, preserves minimum 4 messages.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Compaction Strategy</span>
+        <ul class="detail-list">
+          <li>Triggered when tokenEstimate exceeds 128k</li>
+          <li>Keeps 30% most recent messages</li>
+          <li>Minimum 4 messages always preserved</li>
+          <li>Optional summarization callback on compact</li>
+        </ul>
+        <span class="detail-label">Calibration</span>
+        <code>recordUsage()</code> adjusts estimates against real API token counts
+        <br><span class="detail-label">File</span>
+        <code>src/core/history-manager.ts</code>
+      </div></div>
+    </div>
+
+    <!-- Summarizer -->
+    <div class="node" style="--node-accent:#9898B8;--node-accent-glow:#9898B820" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4DD;</div>
+        <div><div class="node-name">SUMMARIZER</div><div class="node-role">SESSION SUMMARIES</div></div>
+      </div>
+      <div class="node-summary">Generates session summaries via fast model. Summaries stored in conversations table and indexed for Deja Vu search.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Pipeline</span>
+        Session end &rarr; Summarizer &rarr; summary text &rarr; conversations table &rarr; FTS5 index
+        <br><span class="detail-label">Uses</span>
+        Fast model (not reasoning model) for speed + cost
+        <br><span class="detail-label">File</span>
+        <code>src/core/summarizer.ts</code>
+      </div></div>
+    </div>
+
+  </div>
+
+  <!-- ═══ VOICE PIPELINE ═══ -->
+  <div class="section fade-in stagger-4">
+    <div class="section-title">Voice Pipeline &mdash; Browser Push-to-Talk</div>
+  </div>
+  <div class="pipeline fade-in stagger-5">
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F3A4;</div>
+      <div class="pipe-label">MIC CAPTURE</div>
+      <div class="pipe-desc">getUserMedia<br>48kHz mono<br>autoGainControl</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F4BB;</div>
+      <div class="pipe-label">SCRIPT PROC</div>
+      <div class="pipe-desc">Float32 &rarr; Int16<br>PCM conversion<br>4096 buffer</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F504;</div>
+      <div class="pipe-label">ELECTRON IPC</div>
+      <div class="pipe-desc">sendAudio()<br>ArrayBuffer<br>to main process</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F310;</div>
+      <div class="pipe-label">GROK WS</div>
+      <div class="pipe-desc">wss://api.x.ai<br>/v1/realtime<br>Base64 PCM</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F50A;</div>
+      <div class="pipe-label">SERVER VAD</div>
+      <div class="pipe-desc">Neural speech<br>detection<br>start/stop events</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F4AC;</div>
+      <div class="pipe-label">WHISPER STT</div>
+      <div class="pipe-desc">Transcription<br>completed event<br>user text</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F9E0;</div>
+      <div class="pipe-label">CORTEX</div>
+      <div class="pipe-desc">chatStreamVoice<br>reasoning + tools<br>via VoiceWorker</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F5E3;&#xFE0F;</div>
+      <div class="pipe-label">GROK TTS</div>
+      <div class="pipe-desc">Native speech<br>audio deltas<br>streaming PCM</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F3B5;</div>
+      <div class="pipe-label">WEB AUDIO</div>
+      <div class="pipe-desc">Int16 &rarr; Float32<br>BufferSource<br>queued playback</div>
+    </div>
+  </div>
+
+  <!-- ═══ TWO VOICE TRACKS ═══ -->
+  <div class="section fade-in stagger-5">
+    <div class="section-title">Dual Voice Architecture</div>
+  </div>
+  <div class="dual-track fade-in stagger-6">
+    <div class="track" style="border-color:#F9731640">
+      <div class="track-badge" style="background:#F9731615;color:#FB923C;border:1px solid #F9731640">TRACK 1</div>
+      <h3 style="color:#FB923C">VOX &mdash; REST TTS</h3>
+      <p>Fire-and-forget speech via <code>POST /v1/tts</code>. Powers CLI/TUI voice. Emotional rewrite engine adds personality via fast model analysis of conversation context.</p>
+      <ul class="track-features">
+        <li>4 modes: off / on / whisper / flat</li>
+        <li>Emotion engine: analyzes recent history for mood</li>
+        <li>Auto-detects audio player (afplay, paplay, etc.)</li>
+        <li>Cancelable playback (kill process + clean temp file)</li>
+        <li>NarrationPicker + ACK_PHRASES for tool narrations</li>
+        <li>Used for: notification TTS, CLI spoken responses</li>
+      </ul>
+    </div>
+    <div class="track" style="border-color:#D946EF40">
+      <div class="track-badge" style="background:#D946EF15;color:#F0ABFC;border:1px solid #D946EF40">TRACK 2</div>
+      <h3 style="color:#F0ABFC">VOICE SESSION &mdash; REALTIME WS</h3>
+      <p>Full-duplex audio via <code>wss://api.x.ai/v1/realtime</code>. Native Grok agent &mdash; reasoning + tool calling + speech all in one stream. No sentence splitting needed.</p>
+      <ul class="track-features">
+        <li>VoiceSessionManager: thin audio I/O + lifecycle</li>
+        <li>VoiceWorker: Grok realtime agent loop</li>
+        <li>Server VAD: neural speech detection (auto start/stop)</li>
+        <li>Barge-in: cancel response on new speech</li>
+        <li>Audio buffering: queues chunks until WS ready</li>
+        <li>Used for: CoE browser Push-to-Talk</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ PROMPT COMPOSITION ═══ -->
+  <div class="section fade-in stagger-5">
+    <div class="section-title">System Prompt Composition</div>
+  </div>
+  <div class="prompt-stack fade-in stagger-6">
+    <div class="prompt-layer" style="--layer-color:#EAB308">
+      <div class="prompt-order">1</div>
+      <div class="prompt-info">
+        <div class="prompt-name">GENESIS</div>
+        <div class="prompt-desc">Core identity &mdash; personality, capabilities, behavioral rules from <code>~/.friday/GENESIS.md</code></div>
+      </div>
+      <div class="prompt-size">~3-5 KB</div>
+    </div>
+    <div class="prompt-layer" style="--layer-color:#06B6D4">
+      <div class="prompt-order">2</div>
+      <div class="prompt-info">
+        <div class="prompt-name">SMARTS KNOWLEDGE</div>
+        <div class="prompt-desc">Pinned entries + FTS5-matched knowledge relevant to current message</div>
+      </div>
+      <div class="prompt-size">~4 KB max</div>
+    </div>
+    <div class="prompt-layer" style="--layer-color:#D946EF">
+      <div class="prompt-order">3</div>
+      <div class="prompt-info">
+        <div class="prompt-name">STUDIO CONTEXT</div>
+        <div class="prompt-desc">HQ data briefing &mdash; projects, progress, blockers, recommendations, agent roster, activity log</div>
+      </div>
+      <div class="prompt-size">~2-3 KB</div>
+    </div>
+    <div class="prompt-layer" style="--layer-color:#22C55E">
+      <div class="prompt-order">4</div>
+      <div class="prompt-info">
+        <div class="prompt-name">SENSORIUM ENVIRONMENT</div>
+        <div class="prompt-desc">Live system snapshot &mdash; date/time, CPU, memory, disk, Docker, git status</div>
+      </div>
+      <div class="prompt-size">~500 B</div>
+    </div>
+    <div class="prompt-layer" style="--layer-color:#F97316">
+      <div class="prompt-order">5</div>
+      <div class="prompt-info">
+        <div class="prompt-name" style="display:flex;align-items:center;gap:8px">VOICE IDENTITY <span style="font-size:9px;padding:2px 6px;border:1px solid #F9731640;border-radius:3px;font-family:'Share Tech Mono';color:#F97316">VOICE MODE ONLY</span></div>
+        <div class="prompt-desc">Irish accent cues, Kerry Condon personality, VOICE_DELIVERY_RULES for natural speech</div>
+      </div>
+      <div class="prompt-size">~2 KB</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:15px;color:var(--text-muted)">
+    Total system prompt: ~8-12 KB per turn (before conversation history)
+  </div>
+
+  <!-- ═══ COE INTEGRATION ═══ -->
+  <div class="section fade-in stagger-6">
+    <div class="section-title">Council of Elrond Integration</div>
+  </div>
+
+  <div class="hq-connection fade-in stagger-7">
+    <div class="hq-side">
+      <h4 style="color:var(--friday-primary)">FRIDAY</h4>
+      <div style="font-size:15px;color:var(--text-secondary)">
+        Studio Director<br>
+        <span style="color:var(--text-muted);font-size:15px">studio-context.ts</span>
+      </div>
+    </div>
+    <div class="hq-connector">
+      <div class="hq-line"></div>
+      <div class="hq-label">loadStudioContext()</div>
+    </div>
+    <div class="hq-side">
+      <h4 style="color:var(--cyan)">HQ DATA</h4>
+      <div style="font-size:15px;color:var(--text-secondary)">
+        C:\Claude\Agency\hq-data\<br>
+        <span style="color:var(--text-muted);font-size:15px">File-based data layer</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="node-grid wide fade-in stagger-7">
+    <div class="node" style="--node-accent:#06B6D4;--node-accent-glow:#06B6D420" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F3AE;</div>
+        <div><div class="node-name">PROJECT BRIEFS</div><div class="node-role">PER-PROJECT DATA</div></div>
+      </div>
+      <div class="node-summary">Reads project.json + progress.json for each game. Extracts name, genre, platform, phase, progress %, monetization, blockers, and category scores.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Projects Loaded</span>
+        <ul class="detail-list">
+          <li><b>Expedition</b> &mdash; Space strategy, Steam+iPad, ~85%</li>
+          <li><b>TTR iOS</b> &mdash; Sewer pipe trick racer, iOS, F2P, ~75%</li>
+          <li><b>TTR Roblox</b> &mdash; TTR port, Roblox/Luau, ~75-80%</li>
+        </ul>
+        <span class="detail-label">Data Sources</span>
+        <code>hq-data/projects/{slug}/project.json</code><br>
+        <code>hq-data/projects/{slug}/progress.json</code><br>
+        <code>hq-data/projects/{slug}/features.json</code>
+      </div></div>
+    </div>
+
+    <div class="node" style="--node-accent:#F97316;--node-accent-glow:#F9731620" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4CB;</div>
+        <div><div class="node-name">RECOMMENDATIONS</div><div class="node-role">AGENT OUTPUT</div></div>
+      </div>
+      <div class="node-summary">Loads latest 8 recommendations per project. Agent name, title, status, date. Friday can discuss and prioritize agent advice.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Format</span>
+        JSON files: <code>YYYY-MM-DD-agent-slug-title.json</code>
+        <br><span class="detail-label">Fields Available</span>
+        agent, title, summary, approaches[], recommended, reasoning, status
+        <br><span class="detail-label">Path</span>
+        <code>hq-data/projects/{slug}/recommendations/</code>
+      </div></div>
+    </div>
+
+    <div class="node" style="--node-accent:#22C55E;--node-accent-glow:#22C55E20" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4CA;</div>
+        <div><div class="node-name">ACTIVITY LOG</div><div class="node-role">RECENT ACTIONS</div></div>
+      </div>
+      <div class="node-summary">Last 10 agent actions with timestamps, agent names, action descriptions, and affected projects. Friday knows what the team has been doing.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Entry Format</span>
+        <code>[date] Agent: action (project)</code>
+        <br><span class="detail-label">Path</span>
+        <code>hq-data/activity-log.json</code>
+        <br><span class="detail-label">Limit</span>
+        10 most recent entries loaded
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ═══ AGENT ROSTER ═══ -->
+  <div class="section fade-in stagger-7">
+    <div class="section-title">Council of Agents &mdash; 14 AI Advisors</div>
+  </div>
+  <div style="margin-bottom:8px;font-size:15px;color:var(--text-secondary)">Friday can dispatch any agent by name. Each specializes in a domain:</div>
+  <div class="agent-grid fade-in stagger-8">
+    <div class="agent-chip" style="--agent-color:#3B82F6"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Market Analyst</div><div class="agent-role">Landscape, pricing, trends</div></div></div>
+    <div class="agent-chip" style="--agent-color:#22C55E"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Store Optimizer</div><div class="agent-role">ASO, tags, listing copy</div></div></div>
+    <div class="agent-chip" style="--agent-color:#F97316"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Growth Strategist</div><div class="agent-role">Launch, viral mechanics</div></div></div>
+    <div class="agent-chip" style="--agent-color:#8B5CF6"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Brand Director</div><div class="agent-role">Identity, visual consistency</div></div></div>
+    <div class="agent-chip" style="--agent-color:#EC4899"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Content Producer</div><div class="agent-role">Trailers, social, press kits</div></div></div>
+    <div class="agent-chip" style="--agent-color:#06B6D4"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Community Manager</div><div class="agent-role">Discord, Reddit, TikTok</div></div></div>
+    <div class="agent-chip" style="--agent-color:#EF4444"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">QA Advisor</div><div class="agent-role">Readiness, quality gates</div></div></div>
+    <div class="agent-chip" style="--agent-color:#EAB308"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Studio Producer</div><div class="agent-role">Priorities, scheduling</div></div></div>
+    <div class="agent-chip" style="--agent-color:#10B981"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Monetization</div><div class="agent-role">Pricing, IAP, Battle Pass</div></div></div>
+    <div class="agent-chip" style="--agent-color:#7C3AED"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Player Psychologist</div><div class="agent-role">Retention, engagement</div></div></div>
+    <div class="agent-chip" style="--agent-color:#F59E0B"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Art Director</div><div class="agent-role">Visual QA, Blender MCP</div></div></div>
+    <div class="agent-chip" style="--agent-color:#FF6B6B"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Creative Thinker</div><div class="agent-role">Bold ideas, cross-genre</div></div></div>
+    <div class="agent-chip" style="--agent-color:#0EA5E9"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">Tech Architect</div><div class="agent-role">Code arch, perf, debt</div></div></div>
+    <div class="agent-chip" style="--agent-color:#D4A574"><div class="agent-dot"></div><div class="agent-info"><div class="agent-name">HR Director</div><div class="agent-role">Agent perf, brain audits</div></div></div>
+  </div>
+
+  <!-- ═══ TOOL / MODULE SYSTEM ═══ -->
+  <div class="section fade-in stagger-7">
+    <div class="section-title">Tool &amp; Module System</div>
+  </div>
+  <div class="node-grid fade-in stagger-8">
+
+    <div class="node" style="--node-accent:#22C55E;--node-accent-glow:#22C55E15" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4C1;</div>
+        <div><div class="node-name">FILESYSTEM</div><div class="node-role">CORE MODULE</div></div>
+      </div>
+      <div class="node-summary">Read, write, list, delete, exec. Protected path enforcement. SSRF guards on exec.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Tools</span>
+        <code>read_file</code>, <code>write_file</code>, <code>list_directory</code>, <code>delete_file</code>, <code>execute_command</code>
+        <br><span class="detail-label">Clearance</span>
+        <code>read-fs</code>, <code>write-fs</code>, <code>delete-fs</code>, <code>exec-shell</code>
+        <br><span class="detail-label">Protection</span>
+        <code>isProtectedPath()</code> blocks Genesis + core modules
+      </div></div>
+    </div>
+
+    <div class="node" style="--node-accent:#F97316;--node-accent-glow:#F9731615" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F500;</div>
+        <div><div class="node-name">GIT</div><div class="node-role">CORE MODULE</div></div>
+      </div>
+      <div class="node-summary">Status, diff, log, branch, stash, push, pull. Full version control access.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Tools</span>
+        <code>git_status</code>, <code>git_diff</code>, <code>git_log</code>, <code>git_branch</code>, <code>git_stash</code>, <code>git_push</code>, <code>git_pull</code>
+        <br><span class="detail-label">Clearance</span>
+        <code>git-read</code>, <code>git-write</code>
+      </div></div>
+    </div>
+
+    <div class="node" style="--node-accent:#3B82F6;--node-accent-glow:#3B82F615" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F40B;</div>
+        <div><div class="node-name">DOCKER</div><div class="node-role">OPTIONAL MODULE</div></div>
+      </div>
+      <div class="node-summary">Container ps, logs, inspect, stats, exec. Container lifecycle management.</div>
+    </div>
+
+    <div class="node" style="--node-accent:#EAB308;--node-accent-glow:#EAB30815" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x25B6;&#xFE0F;</div>
+        <div><div class="node-name">CODE EXEC</div><div class="node-role">OPTIONAL MODULE</div></div>
+      </div>
+      <div class="node-summary">Sandboxed script runner. Execute code snippets safely.</div>
+    </div>
+
+    <div class="node" style="--node-accent:#06B6D4;--node-accent-glow:#06B6D415" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F310;</div>
+        <div><div class="node-name">WEB FETCH</div><div class="node-role">OPTIONAL MODULE</div></div>
+      </div>
+      <div class="node-summary">HTTP requests with SSRF protection. Safe external data access.</div>
+    </div>
+
+    <div class="node" style="--node-accent:#8B5CF6;--node-accent-glow:#8B5CF615" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F514;</div>
+        <div><div class="node-name">NOTIFY</div><div class="node-role">OPTIONAL MODULE</div></div>
+      </div>
+      <div class="node-summary">Multi-channel dispatch. Terminal, Slack, webhook, email channels.</div>
+    </div>
+
+    <div class="node" style="--node-accent:#D946EF;--node-accent-glow:#D946EF15" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F525;</div>
+        <div><div class="node-name">THE FORGE</div><div class="node-role">SELF-IMPROVEMENT</div></div>
+      </div>
+      <div class="node-summary">Friday-authored modules. Failed modules don't crash boot. Core-protected. Self-modification with safety rails.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Pattern</span>
+        Friday generates <code>*.module.ts</code> files in <code>forge/</code> directory. They're auto-discovered and loaded alongside core modules.
+        <br><span class="detail-label">Safety</span>
+        <ul class="detail-list">
+          <li>Failed forge modules are quarantined, don't block boot</li>
+          <li>Template includes proper validation patterns</li>
+          <li>Requires <code>forge-modify</code> clearance</li>
+        </ul>
+      </div></div>
+    </div>
+
+    <div class="node" style="--node-accent:#EF4444;--node-accent-glow:#EF444415" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F4E7;</div>
+        <div><div class="node-name">GMAIL</div><div class="node-role">OPTIONAL MODULE</div></div>
+      </div>
+      <div class="node-summary">Read, search, send, reply, label, archive. OAuth 2.0 tokens encrypted via SecretStore (AES-256-GCM).</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Tools</span>
+        <code>gmail_read</code>, <code>gmail_search</code>, <code>gmail_send</code>, <code>gmail_reply</code>, <code>gmail_label</code>, <code>gmail_archive</code>
+        <br><span class="detail-label">Clearance</span>
+        Send/reply require <code>email-send</code> clearance
+        <br><span class="detail-label">Security</span>
+        OAuth tokens encrypted via SecretStore (AES-256-GCM, OS keychain + fallback)
+      </div></div>
+    </div>
+
+  </div>
+
+  <!-- ═══ TOOL BRIDGE ═══ -->
+  <div class="section fade-in stagger-8">
+    <div class="section-title">Tool Execution Pipeline</div>
+  </div>
+  <div class="pipeline fade-in stagger-8" style="max-width:900px;margin:0 auto">
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F527;</div>
+      <div class="pipe-label">FRIDAYTOOL</div>
+      <div class="pipe-desc">Portable tool<br>definition<br>(name, params, execute)</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F504;</div>
+      <div class="pipe-label">TOOL BRIDGE</div>
+      <div class="pipe-desc">buildToolDefs()<br>toZodSchema() or<br>toGrokTools()</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F512;</div>
+      <div class="pipe-label">CLEARANCE</div>
+      <div class="pipe-desc">Permission check<br>all-or-nothing<br>deny &rarr; abort</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x1F4CB;</div>
+      <div class="pipe-label">AUDIT</div>
+      <div class="pipe-desc">Log executing<br>+ completed<br>with details</div>
+    </div>
+    <div class="pipe-stage">
+      <div class="pipe-icon">&#x2705;</div>
+      <div class="pipe-label">EXECUTE</div>
+      <div class="pipe-desc">Run tool with<br>scoped context<br>return output</div>
+    </div>
+  </div>
+
+  <!-- ═══ DUAL-BRAIN ARCHITECTURE ═══ -->
+  <div class="section fade-in stagger-9">
+    <div class="section-title">Dual-Brain Architecture</div>
+  </div>
+  <div class="dual-track fade-in stagger-9">
+    <div class="track" style="border-color:#F9731640">
+      <div class="track-badge" style="background:#F9731615;color:#FB923C;border:1px solid #F9731640">FAST PATH</div>
+      <h3 style="color:#FB923C">GROK BRAIN</h3>
+      <p>Default brain for all voice and short queries. Native voice I/O via Grok Realtime WebSocket &mdash; STT, reasoning, tool calls, and TTS all happen in a single stream with sub-second latency.</p>
+      <ul class="track-features">
+        <li>Native voice I/O via Grok Realtime WebSocket</li>
+        <li>Streaming text responses via Vercel AI SDK</li>
+        <li>Sub-second latency for short queries</li>
+        <li>Handles all voice STT &rarr; reasoning &rarr; TTS natively</li>
+        <li>Tool calling in both text and voice modes</li>
+        <li>Fallback target when Claude errors</li>
+      </ul>
+    </div>
+    <div class="track" style="border-color:#3B82F640">
+      <div class="track-badge" style="background:#3B82F615;color:#60A5FA;border:1px solid #3B82F640">DEEP PATH</div>
+      <h3 style="color:#60A5FA">CLAUDE BRAIN</h3>
+      <p>Heavy-lift brain for complex analysis, code review, and architecture planning. Invoked via Claude Code CLI subprocess (<code>claude -p</code>) with full codebase access and tool use.</p>
+      <ul class="track-features">
+        <li>Claude Code CLI subprocess (<code>claude -p</code>)</li>
+        <li>Complex analysis, code review, architecture planning</li>
+        <li>60s default timeout, retry on empty response</li>
+        <li>Truncation safety for large outputs</li>
+        <li>Falls back to Grok on error or timeout</li>
+        <li>Full codebase access via Claude Code tools</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:16px">
+    <div class="flow fade-in stagger-10" style="flex-direction:column;align-items:stretch;gap:0;padding:0">
+      <div style="padding:14px 20px;font-family:'Orbitron',sans-serif;font-size:15px;font-weight:600;letter-spacing:2px;color:var(--friday-primary);border-bottom:1px solid var(--border-dim);background:var(--bg-panel)">BRAINROUTER DECISION FLOW</div>
+      <div style="padding:16px 20px">
+        <div class="flow" style="background:transparent;border:none;padding:0;justify-content:flex-start;flex-wrap:wrap;gap:4px">
+          <div class="flow-step"><div class="flow-node" style="border-color:#D946EF40;color:#F0ABFC">Message</div><div class="flow-arrow">&rarr;</div></div>
+          <div class="flow-step"><div class="flow-node">@prefix check</div><div class="flow-arrow">&rarr;</div></div>
+          <div class="flow-step"><div class="flow-node">Mode check</div><div class="flow-arrow">&rarr;</div></div>
+          <div class="flow-step"><div class="flow-node" style="border-color:#F9731640;color:#FB923C">Voice check</div><div class="flow-arrow">&rarr;</div></div>
+          <div class="flow-step"><div class="flow-node" style="border-color:#3B82F640;color:#60A5FA">Keyword match</div><div class="flow-arrow">&rarr;</div></div>
+          <div class="flow-step"><div class="flow-node">Length check</div><div class="flow-arrow">&rarr;</div></div>
+          <div class="flow-step"><div class="flow-node" style="border-color:#F97316;color:#FB923C;box-shadow:0 0 10px #F9731630">Default (Grok)</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;overflow-x:auto" class="fade-in stagger-10">
+    <table class="route-table">
+      <thead>
+        <tr><th style="width:50px">#</th><th>Rule</th><th>Condition</th><th>Routes To</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="priority-num">1</span></td><td>Explicit prefix</td><td><code>@claude</code> or <code>@grok</code> prefix in message</td><td><span class="route-target claude">CLAUDE</span> or <span class="route-target grok">GROK</span></td></tr>
+        <tr><td><span class="priority-num">2</span></td><td>Mode override</td><td>Brain mode set to <code>claude-only</code> or <code>grok-only</code></td><td><span class="route-target claude">CLAUDE</span> or <span class="route-target grok">GROK</span></td></tr>
+        <tr><td><span class="priority-num">3</span></td><td>Voice session</td><td>Active voice session (PTT / realtime)</td><td><span class="route-target grok">GROK</span></td></tr>
+        <tr><td><span class="priority-num">4</span></td><td>Claude keywords</td><td>Contains: <code>analyze</code>, <code>review</code>, <code>architect</code>, <code>refactor</code>, <code>explain code</code>, <code>debug</code></td><td><span class="route-target claude">CLAUDE</span></td></tr>
+        <tr><td><span class="priority-num">5</span></td><td>Agent dispatch</td><td>Contains <code>@AgentName</code> council agent reference</td><td><span class="route-target claude">CLAUDE</span></td></tr>
+        <tr><td><span class="priority-num">6</span></td><td>Length threshold</td><td>Message &gt; 500 chars (complex request)</td><td><span class="route-target claude">CLAUDE</span></td></tr>
+        <tr><td><span class="priority-num">7</span></td><td>Default</td><td>All other messages</td><td><span class="route-target grok">GROK</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ STUDIO DIRECTOR TOOLS ═══ -->
+  <div class="section fade-in stagger-10">
+    <div class="section-title">Studio Director Tools</div>
+  </div>
+  <div style="margin-bottom:8px;font-size:15px;color:var(--text-secondary)">Friday's interface to the Council of Elrond HQ data layer &mdash; read, write, and dispatch agents.</div>
+  <div class="node-grid wide fade-in stagger-11">
+
+    <div class="node" style="--node-accent:#06B6D4;--node-accent-glow:#06B6D420" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F50D;</div>
+        <div><div class="node-name">STUDIO.QUERY</div><div class="node-role">READ HQ DATA</div></div>
+      </div>
+      <div class="node-summary">Read recommendations, features, progress scores, and activity logs from the HQ data layer. Supports keyword search and project filtering.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Queryable Data</span>
+        <ul class="detail-list">
+          <li><code>recommendations</code> &mdash; agent recommendations per project</li>
+          <li><code>features</code> &mdash; feature registry (source of truth)</li>
+          <li><code>progress</code> &mdash; project progress scores</li>
+          <li><code>activity</code> &mdash; recent activity log entries</li>
+        </ul>
+        <span class="detail-label">Parameters</span>
+        <ul class="detail-list">
+          <li><code>project</code> &mdash; project slug filter</li>
+          <li><code>type</code> &mdash; data type to query</li>
+          <li><code>keyword</code> &mdash; text search within results</li>
+        </ul>
+        <span class="detail-label">Returns</span>
+        Structured JSON matching the HQ data schema
+      </div></div>
+    </div>
+
+    <div class="node" style="--node-accent:#22C55E;--node-accent-glow:#22C55E20" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x270F;&#xFE0F;</div>
+        <div><div class="node-name">STUDIO.UPDATE</div><div class="node-role">WRITE HQ DATA</div></div>
+      </div>
+      <div class="node-summary">Write recommendations, log activity entries, and update feature registries. Validates schema before write to prevent dashboard-breaking data.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Write Targets</span>
+        <ul class="detail-list">
+          <li><code>recommendation</code> &mdash; write agent recommendation JSON</li>
+          <li><code>activity</code> &mdash; append to activity-log.json</li>
+          <li><code>features</code> &mdash; update project features.json</li>
+        </ul>
+        <span class="detail-label">Validation</span>
+        <ul class="detail-list">
+          <li>Required fields: <code>title</code>, <code>agent</code>, <code>project</code>, <code>status</code>, <code>timestamp</code>, <code>approaches[]</code></li>
+          <li>Approaches must be array with numeric <code>id</code></li>
+          <li>File naming enforced: <code>YYYY-MM-DD-agent-slug-title-slug.json</code></li>
+        </ul>
+        <span class="detail-label">Side Effects</span>
+        Auto-appends to activity log after recommendation write
+      </div></div>
+    </div>
+
+    <div class="node" style="--node-accent:#8B5CF6;--node-accent-glow:#8B5CF620" onclick="this.classList.toggle('expanded')">
+      <span class="expand-hint">EXPAND</span>
+      <div class="node-header">
+        <div class="node-icon">&#x1F680;</div>
+        <div><div class="node-name">STUDIO.DISPATCH_AGENT</div><div class="node-role">SPAWN COUNCIL AGENT</div></div>
+      </div>
+      <div class="node-summary">Spawn a Council of Elrond agent as an async Claude Code subprocess. Loads agent skill file + project context. Max 3 concurrent dispatches.</div>
+      <div class="node-details"><div class="node-details-inner">
+        <span class="detail-label">Dispatch Flow</span>
+        <ul class="detail-list">
+          <li>Resolve agent name &rarr; skill file path</li>
+          <li>Load project context (features.json + project.json)</li>
+          <li>Spawn <code>claude -p</code> with agent prompt + task</li>
+          <li>Stream output, capture recommendation JSON</li>
+        </ul>
+        <span class="detail-label">Concurrency</span>
+        <ul class="detail-list">
+          <li>Max 3 concurrent agent subprocesses</li>
+          <li>Queue additional requests until slot opens</li>
+          <li>Each agent gets isolated conversation context</li>
+        </ul>
+        <span class="detail-label">Parameters</span>
+        <code>agent</code> (name), <code>project</code> (slug), <code>task</code> (instruction text)
+      </div></div>
+    </div>
+
+  </div>
+
+  <!-- ═══ VOICE + CLAUDE PIPELINE ═══ -->
+  <div class="section fade-in stagger-11">
+    <div class="section-title">Voice + Claude Pipeline</div>
+  </div>
+  <div class="vflow fade-in stagger-12">
+    <div class="vflow-track">
+      <div class="vflow-label" style="color:#3B82F6">VOICE + CLAUDE FLOW</div>
+      <div class="vflow-steps">
+        <div class="vflow-node" style="border-color:#F9731640;color:#FB923C">PTT</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node" style="border-color:#F9731640;color:#FB923C">Grok STT</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node">Transcript</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node" style="border-color:#D946EF40;color:#F0ABFC">BrainRouter</div>
+        <div class="vflow-branch">decides &ldquo;claude&rdquo;</div>
+      </div>
+      <div class="vflow-steps" style="margin-top:8px;padding-left:40px">
+        <div class="vflow-arrow">&darr;</div>
+        <div class="vflow-node" style="border-color:#3B82F640;color:#60A5FA">Claude CLI subprocess</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node">Response text</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node" style="border-color:#F9731640;color:#FB923C">Grok WS (conversation.item.create)</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node" style="border-color:#F9731640;color:#FB923C">Grok TTS</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node" style="border-color:#22C55E40;color:#4ADE80">Speaker</div>
+      </div>
+    </div>
+    <div class="vflow-track">
+      <div class="vflow-label" style="color:#F97316">VOICE + GROK FLOW (DEFAULT)</div>
+      <div class="vflow-steps">
+        <div class="vflow-node" style="border-color:#F9731640;color:#FB923C">PTT</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node" style="border-color:#F9731640;color:#FB923C">Grok STT</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node" style="border-color:#F9731640;color:#FB923C">Grok reasoning + tool calls + speech</div>
+        <div class="vflow-arrow">&rarr;</div>
+        <div class="vflow-node" style="border-color:#22C55E40;color:#4ADE80">Speaker</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ LEGEND ═══ -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--friday-primary)"></div>Core / Cortex</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Memory</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>Knowledge</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Sensors</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Identity</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>Voice</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Scheduler</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8B5CF6"></div>Automation</div>
+  </div>
+
+  <!-- ═══ FOOTER ═══ -->
+  <div class="footer">
+    F.R.I.D.A.Y. SYSTEM SCHEMATIC &mdash; COUNCIL OF ELROND GAME STUDIO<br>
+    <span style="color:var(--friday-primary)">&#x25CF;</span> RUNTIME: BUN/TYPESCRIPT &nbsp;&bull;&nbsp; AI: VERCEL AI SDK + GROK &nbsp;&bull;&nbsp; DB: SQLITE + FTS5 &nbsp;&bull;&nbsp; 1129 TESTS
+  </div>
+
+</div>
+
+<script>
+  // Intersection Observer for scroll-triggered fade-ins
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.animationPlayState = 'running';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-in').forEach(el => {
+    el.style.animationPlayState = 'paused';
+    observer.observe(el);
+  });
+
+  // Keyboard navigation for nodes
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.node.expanded').forEach(n => n.classList.remove('expanded'));
+    }
+  });
+
+  // Persona takeover — listen for parent frame persona messages
+  window.addEventListener('message', (e) => {
+    if (e.data?.type !== 'persona-takeover') return;
+    const { name, color, symbol } = e.data;
+    if (!name || name === 'F.R.I.D.A.Y.') return;
+
+    // Update CSS vars to persona color
+    const root = document.documentElement;
+    root.style.setProperty('--friday-primary', color);
+    root.style.setProperty('--friday-glow', color + '60');
+    root.style.setProperty('--friday-deep', '#000000');
+    root.style.setProperty('--friday-light', '#FFFFFF');
+
+    // Takeover the title — strikethrough F.R.I.D.A.Y. + spray-painted name
+    const h1 = document.querySelector('.header h1');
+    if (h1) {
+      h1.innerHTML = `<span style="text-decoration:line-through;opacity:0.35;color:var(--text-muted)">F.R.I.D.A.Y.</span> <span style="font-family:'Permanent Marker','Marker Felt',cursive;color:${color};transform:rotate(-2deg);display:inline-block;text-shadow:2px 2px 0 ${color}30;letter-spacing:0.05em;margin-left:12px">${name}</span>`;
+    }
+
+    // Takeover subtitle
+    const sub = document.querySelector('.header .subtitle');
+    if (sub) sub.style.opacity = '0.25';
+
+    // Make the orb dark with a symbol
+    const orb = document.querySelector('.orb');
+    if (orb && symbol) {
+      orb.style.background = `radial-gradient(circle at 35% 35%, #333, #111, #000)`;
+      orb.style.boxShadow = `0 0 40px ${color}40, 0 0 80px ${color}15, inset 0 0 20px #ffffff08`;
+      orb.style.display = 'flex';
+      orb.style.alignItems = 'center';
+      orb.style.justifyContent = 'center';
+      orb.style.fontSize = '2.2rem';
+      orb.style.fontWeight = '300';
+      orb.style.color = color;
+      orb.style.textShadow = `0 0 12px ${color}, 0 0 24px ${color}60`;
+      orb.textContent = symbol;
+    }
+
+    // Takeover footer
+    const footer = document.querySelector('.footer');
+    if (footer) {
+      footer.innerHTML = footer.innerHTML.replace('F.R.I.D.A.Y.', `<span style="text-decoration:line-through;opacity:0.4">F.R.I.D.A.Y.</span> <span style="font-family:'Permanent Marker',cursive;color:${color}">${name}</span>`);
+    }
+  });
+</script>
+
+</body>
+</html>

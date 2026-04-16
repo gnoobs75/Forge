@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F.R.I.D.A.Y. — Testing Checklist & Setup Guide</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --fuchsia: #D946EF;
+    --fuchsia-dim: rgba(217,70,239,0.15);
+    --green: #22C55E;
+    --green-dim: rgba(34,197,94,0.12);
+    --yellow: #EAB308;
+    --yellow-dim: rgba(234,179,8,0.12);
+    --orange: #F97316;
+    --blue: #3B82F6;
+    --blue-dim: rgba(59,130,246,0.12);
+    --red: #EF4444;
+    --red-dim: rgba(239,68,68,0.12);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    padding: 0;
+  }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, rgba(217,70,239,0.08) 0%, rgba(59,130,246,0.05) 50%, rgba(217,70,239,0.03) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 40px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(217,70,239,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-orb {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #F0ABFC, #D946EF, #7E22CE);
+    box-shadow: 0 0 40px rgba(217,70,239,0.4), 0 0 80px rgba(217,70,239,0.15);
+    margin: 0 auto 20px;
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(217,70,239,0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(217,70,239,0.5); }
+  }
+  .hero h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--fuchsia);
+    margin-bottom: 6px;
+  }
+  .hero .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .hero .version-tag {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fuchsia);
+    background: var(--fuchsia-dim);
+    border: 1px solid rgba(217,70,239,0.25);
+  }
+
+  /* Layout */
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+  /* Nav tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted);
+    border: none;
+    background: transparent;
+  }
+  .tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .tab.active { color: var(--fuchsia); background: var(--fuchsia-dim); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Section */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-header .phase-badge {
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .phase-1 { background: var(--blue-dim); color: var(--blue); }
+  .phase-2 { background: var(--fuchsia-dim); color: var(--fuchsia); }
+  .phase-3 { background: rgba(249,115,22,0.12); color: var(--orange); }
+  .setup-badge { background: var(--green-dim); color: var(--green); }
+
+  .section-header h3 {
+    font-size: 15px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .section-header .progress {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Checklist items */
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(30,41,59,0.5);
+    transition: background 0.15s;
+  }
+  .check-item:last-child { border-bottom: none; }
+  .check-item:hover { background: rgba(255,255,255,0.015); }
+
+  .checkbox {
+    width: 20px; height: 20px;
+    border-radius: 5px;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-top: 1px;
+    font-size: 12px;
+    color: transparent;
+  }
+  .checkbox:hover { border-color: var(--fuchsia); }
+  .checkbox.checked {
+    background: var(--green);
+    border-color: var(--green);
+    color: white;
+  }
+
+  .check-content { flex: 1; }
+  .check-title {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+  .check-detail {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .check-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tag-critical { background: var(--red-dim); color: var(--red); }
+  .tag-visual { background: var(--fuchsia-dim); color: var(--fuchsia); }
+  .tag-audio { background: var(--blue-dim); color: var(--blue); }
+
+  /* Setup guide */
+  .step {
+    padding: 20px;
+    border-bottom: 1px solid rgba(30,41,59,0.5);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--fuchsia-dim);
+    color: var(--fuchsia);
+    font-size: 13px;
+    font-weight: 700;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+  .step h4 {
+    display: inline;
+    font-size: 14px;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .step p {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 8px 0 0 38px;
+    line-height: 1.6;
+  }
+
+  /* Code blocks */
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0 0 38px;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-x: auto;
+    color: #c9d1d9;
+    position: relative;
+  }
+  .code-block .comment { color: #6e7681; }
+  .code-block .string { color: #a5d6ff; }
+  .code-block .key { color: #d2a8ff; }
+  .code-block .cmd { color: #79c0ff; }
+  .code-block .url { color: #f0883e; }
+
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    background: var(--border);
+    color: var(--muted);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { background: var(--fuchsia-dim); color: var(--fuchsia); }
+
+  /* Warning box */
+  .warning {
+    background: var(--yellow-dim);
+    border: 1px solid rgba(234,179,8,0.25);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0 0 38px;
+    font-size: 12px;
+    color: #fbbf24;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .warning-icon { font-size: 16px; flex-shrink: 0; }
+
+  /* Info box */
+  .info {
+    background: var(--blue-dim);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0 0 38px;
+    font-size: 12px;
+    color: #93c5fd;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  /* Progress bar */
+  .progress-bar-container {
+    margin: 20px 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+  .progress-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--fuchsia), #A855F7);
+    transition: width 0.5s ease;
+  }
+
+  /* Table */
+  .env-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 0 38px;
+    font-size: 12px;
+  }
+  .env-table th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .env-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(30,41,59,0.4);
+    font-family: 'Cascadia Code', monospace;
+  }
+  .env-table td:first-child { color: var(--fuchsia); }
+  .env-table td:last-child { color: var(--muted); font-family: inherit; }
+
+  /* Rollback section */
+  .rollback {
+    background: var(--red-dim);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+  .rollback h3 {
+    font-size: 14px;
+    color: var(--red);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rollback p { font-size: 12px; color: #fca5a5; margin-bottom: 10px; }
+  .rollback .code-block { margin-left: 0; }
+
+  /* localStorage persistence */
+  .check-item.completed .check-title { text-decoration: line-through; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-orb"></div>
+  <h1>F.R.I.D.A.Y.</h1>
+  <div class="subtitle">Studio Director &mdash; Testing Checklist & Setup Guide</div>
+  <div class="version-tag">Phase 1 + 2 + 3 Complete</div>
+</div>
+
+<div class="container">
+
+  <!-- Tab Navigation -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('setup')">Setup Guide</button>
+    <button class="tab" onclick="switchTab('phase1')">Phase 1 Tests</button>
+    <button class="tab" onclick="switchTab('phase2')">Phase 2 Tests</button>
+    <button class="tab" onclick="switchTab('phase3')">Phase 3 Tests</button>
+    <button class="tab" onclick="switchTab('rollback')">Rollback</button>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-bar-container">
+    <div class="progress-bar-label">
+      <span>Testing Progress</span>
+      <span id="progress-count">0 / 27 checks</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <!-- ==================== SETUP GUIDE ==================== -->
+  <div id="tab-setup" class="tab-content active">
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge setup-badge">Prerequisites</span>
+        <h3>Before You Start</h3>
+      </div>
+      <div class="step">
+        <span class="step-number">1</span>
+        <h4>Clone & Install Friday</h4>
+        <p>Friday runs as a separate Bun server. Clone her repo and install dependencies.</p>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <span class="cmd">git clone</span> <span class="url">https://github.com/byronmcclain/friday.git</span><br>
+          <span class="cmd">cd</span> friday<br>
+          <span class="cmd">bun install</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">2</span>
+        <h4>Get an xAI API Key (Grok Voice)</h4>
+        <p>Friday uses Grok (by xAI) for her voice engine. This is separate from Groq which powers council chat banter.</p>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <span class="comment"># 1. Go to:</span><br>
+          <span class="url">https://console.x.ai/</span><br><br>
+          <span class="comment"># 2. Sign up / sign in</span><br>
+          <span class="comment"># 3. Navigate to API Keys section</span><br>
+          <span class="comment"># 4. Click "Create API Key"</span><br>
+          <span class="comment"># 5. Name it "friday-studio" or similar</span><br>
+          <span class="comment"># 6. Copy the key (starts with xai-...)</span>
+        </div>
+        <div class="warning">
+          <span class="warning-icon">&#x26A0;</span>
+          <div>
+            <strong>Grok vs Groq</strong> &mdash; These are two different services!<br>
+            <strong>Grok</strong> (xAI) = Friday's voice engine. Key goes in CoE Settings &rarr; Friday section.<br>
+            <strong>Groq</strong> (Groq Inc.) = Council Chat banter. Already configured separately.
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">3</span>
+        <h4>Install the CoE Module into Friday</h4>
+        <p>This symlinks the studio tools into Friday's forge system so she can read your studio data.</p>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <span class="comment"># From the CoE project root:</span><br>
+          <span class="cmd">cd</span> C:\Claude\Agency\council-of-elrond<br>
+          <span class="cmd">bash</span> friday-module/setup.sh
+        </div>
+        <div class="info">
+          <span style="font-size:16px">&#x2139;</span>
+          <div>This creates a symlink at <code>~/.friday/forge/coe-studio/</code> pointing to your module, and copies the GENESIS identity file if not already present.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge setup-badge">Configuration</span>
+        <h3>Connect Friday to CoE</h3>
+      </div>
+
+      <div class="step">
+        <span class="step-number">4</span>
+        <h4>Start the Friday Server</h4>
+        <p>Launch Friday in a separate terminal. She listens on port 3000 by default.</p>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <span class="comment"># In the friday/ directory:</span><br>
+          <span class="cmd">bun run</span> serve<br><br>
+          <span class="comment"># You should see:</span><br>
+          <span class="string">Friday listening on ws://localhost:3000/ws</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">5</span>
+        <h4>Start CoE Dashboard</h4>
+        <p>Launch the Council of Elrond Electron app.</p>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <span class="comment"># In the council-of-elrond/ directory:</span><br>
+          <span class="cmd">npm run</span> dev
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">6</span>
+        <h4>Enter xAI Key in Settings</h4>
+        <p>Open the CoE Settings panel and configure Friday.</p>
+        <div class="code-block">
+          <span class="comment"># In the dashboard:</span><br>
+          1. Click the <span class="key">&#x2699; Settings</span> gear icon<br>
+          2. Scroll to <span class="key">"Friday &mdash; Studio Director"</span> section<br>
+          3. Toggle <span class="string">Enable Friday</span> &rarr; ON (fuchsia)<br>
+          4. Server URL: <span class="url">ws://localhost:3000/ws</span> (default)<br>
+          5. Paste your xAI API key in the <span class="key">"xAI API Key"</span> field<br>
+          6. Click <span class="string">Save</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">7</span>
+        <h4>Navigate to Friday Panel</h4>
+        <p>Click "Friday" in the top nav bar (next to "Studio Overview"). The status dot should turn green once connected.</p>
+        <div class="info">
+          <span style="font-size:16px">&#x2139;</span>
+          <div>If connection fails, check the terminal running Friday for errors. The WebSocket will auto-retry with exponential backoff (1s &rarr; 2s &rarr; 4s &rarr; ... &rarr; 30s max, 10 retries).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge setup-badge">Environment</span>
+        <h3>Environment Variables (Optional)</h3>
+      </div>
+      <div class="step">
+        <p style="margin-left:0">Friday's CoE Module reads these environment variables. All have sensible defaults.</p>
+        <table class="env-table" style="margin-left:0; margin-top:12px">
+          <thead>
+            <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>HQ_DATA</td><td>C:\Claude\Agency\hq-data</td><td>Path to studio data directory</td></tr>
+            <tr><td>XAI_API_KEY</td><td>(from Settings)</td><td>Grok voice API key</td></tr>
+            <tr><td>FRIDAY_PORT</td><td>3000</td><td>WebSocket server port</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PHASE 1 TESTS ==================== -->
+  <div id="tab-phase1" class="tab-content">
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge phase-1">Phase 1</span>
+        <h3>Connection & WebSocket</h3>
+        <span class="progress" id="p1-conn-progress">0/4</span>
+      </div>
+      <div class="check-item" data-id="p1-1">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Toggle Friday ON in Settings <span class="check-tag tag-critical">CRITICAL</span></div>
+          <div class="check-detail">Settings &rarr; Friday &mdash; Studio Director &rarr; Enable Friday toggle turns fuchsia. Status shows "connecting" then "connected".</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-2">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">WebSocket connects successfully</div>
+          <div class="check-detail">Status dot in Friday Panel header turns green. Console shows <code>[CoE Friday] WebSocket connected</code>.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-3">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Reconnect after server restart</div>
+          <div class="check-detail">Stop Friday server &rarr; status turns yellow "reconnecting" &rarr; restart server &rarr; auto-reconnects. Exponential backoff: 1s &rarr; 2s &rarr; 4s &rarr; 8s &rarr; 16s &rarr; 30s max.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-4">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Disconnect cleanly</div>
+          <div class="check-detail">Click "Disconnect" button &rarr; status returns to "disconnected", mini-orb goes gray. CoE continues to work normally.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge phase-1">Phase 1</span>
+        <h3>Text Chat & Morning Briefing</h3>
+        <span class="progress" id="p1-chat-progress">0/4</span>
+      </div>
+      <div class="check-item" data-id="p1-5">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Morning briefing fires on connect <span class="check-tag tag-critical">CRITICAL</span></div>
+          <div class="check-detail">On first connection, Friday automatically delivers a briefing using her CoE Module tools to read studio data. Appears in the transcript feed.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-6">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Text message sends and gets response</div>
+          <div class="check-detail">Type a question in the input field &rarr; press Enter &rarr; your message appears in transcript &rarr; Friday responds with streaming text.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-7">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Friday reads studio data correctly</div>
+          <div class="check-detail">Ask "What projects are we working on?" &rarr; Friday lists Expedition, TTR iOS, TTR Roblox with accurate progress percentages from features.json.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-8">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Transcript auto-scrolls</div>
+          <div class="check-detail">As new messages arrive, the transcript feed scrolls to show the latest message. Fuchsia styling for Friday messages, standard for user messages.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge phase-1">Phase 1</span>
+        <h3>Dashboard Integration</h3>
+        <span class="progress" id="p1-dash-progress">0/5</span>
+      </div>
+      <div class="check-item" data-id="p1-9">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Friday nav button in breadcrumb bar</div>
+          <div class="check-detail">"Friday" button appears in the top nav next to "Studio Overview". Highlights in fuchsia (#D946EF) when active.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-10">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Breadcrumb shows Friday path</div>
+          <div class="check-detail">When on Friday view: breadcrumb shows "Friday / Studio Director" in fuchsia.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-11">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Navigation clears properly</div>
+          <div class="check-detail">Clicking a project (or pressing 1-9) exits Friday view. Pressing 0/H returns to Studio Overview. Escape works progressively.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-12">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Studio Status Cards show data</div>
+          <div class="check-detail">Left sidebar of Friday Panel shows project progress cards with correct percentages and Friday's connection status card.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p1-13">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Sound events play</div>
+          <div class="check-detail"><code>friday-connect</code> (rising two-tone), <code>friday-message</code> (soft ping), <code>friday-alert</code> (double-beep) all produce synth sounds. Customizable in Settings &rarr; Sound Mapping.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PHASE 2 TESTS ==================== -->
+  <div id="tab-phase2" class="tab-content">
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge phase-2">Phase 2</span>
+        <h3>VoiceOrb</h3>
+        <span class="progress" id="p2-orb-progress">0/4</span>
+      </div>
+      <div class="check-item" data-id="p2-1">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">VoiceOrb renders in Friday Panel <span class="check-tag tag-visual">VISUAL</span></div>
+          <div class="check-detail">Three.js icosahedron orb with orbit rings appears in the left sidebar of Friday Panel. Slowly rotates. Inner glow pulses.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p2-2">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">State transitions are smooth <span class="check-tag tag-visual">VISUAL</span></div>
+          <div class="check-detail">Colors lerp smoothly between states: Off (gray) &rarr; Idle (fuchsia) &rarr; Listening (blue) &rarr; Speaking (green) &rarr; Working (orange). No jarring jumps.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p2-3">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Orb is "off" when disconnected</div>
+          <div class="check-detail">When Friday is disconnected, orb is gray and static. Turns fuchsia (idle) on connection.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p2-4">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">No WebGL context leak</div>
+          <div class="check-detail">Navigate away from Friday panel and back multiple times. No console errors about too many WebGL contexts. Cleanup disposes renderer on unmount.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge phase-2">Phase 2</span>
+        <h3>Floating Mini-Orb</h3>
+        <span class="progress" id="p2-mini-progress">0/3</span>
+      </div>
+      <div class="check-item" data-id="p2-5">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Mini-orb visible on all views when enabled</div>
+          <div class="check-detail">Small fuchsia orb fixed to bottom-right corner on Studio Overview, Game Detail, Agent Profile views. "FRIDAY" label below.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p2-6">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Narration bubble shows latest message</div>
+          <div class="check-detail">When Friday sends a message, a preview bubble pops above the mini-orb for 5 seconds, then fades. Truncates at 80 chars.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p2-7">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Click navigates to Friday Panel</div>
+          <div class="check-detail">Clicking the mini-orb or narration bubble navigates to the full Friday Panel view. Mini-orb hides when Friday is disabled.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge phase-2">Phase 2</span>
+        <h3>Voice & Audio</h3>
+        <span class="progress" id="p2-audio-progress">0/3</span>
+      </div>
+      <div class="check-item" data-id="p2-8">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Push-to-talk captures mic <span class="check-tag tag-audio">AUDIO</span></div>
+          <div class="check-detail">Click "Push to Talk" &rarr; browser requests mic permission &rarr; button turns blue "Stop" &rarr; orb turns blue (listening). VoiceOrb reacts to audio level.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p2-9">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Audio plays from Friday <span class="check-tag tag-audio">AUDIO</span></div>
+          <div class="check-detail">When Friday responds with voice, audio plays through browser speakers. VoiceOrb turns green (speaking). Mute button stops playback.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p2-10">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Ambient narration triggers on file changes</div>
+          <div class="check-detail">Create a new recommendation file in hq-data &rarr; within 30s, Friday mentions it. Batches multiple changes into one narration.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PHASE 3 TESTS ==================== -->
+  <div id="tab-phase3" class="tab-content">
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge phase-3">Phase 3</span>
+        <h3>Agent Commanding</h3>
+        <span class="progress" id="p3-cmd-progress">0/4</span>
+      </div>
+      <div class="check-item" data-id="p3-1">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">ConfirmDialog appears for agent spawn <span class="check-tag tag-critical">CRITICAL</span></div>
+          <div class="check-detail">Ask Friday "Get QA Advisor to check Expedition" &rarr; orange ConfirmDialog appears with agent name, project, and instruction. "Do it" / "Cancel" buttons.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p3-2">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Approving spawns agent PTY</div>
+          <div class="check-detail">Click "Do it" &rarr; agent terminal session spawns with the instruction &rarr; task-update message shows "in-progress" &rarr; on completion shows "completed" with exit code.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p3-3">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Denying cancels command</div>
+          <div class="check-detail">Click "Cancel" &rarr; ConfirmDialog disappears &rarr; transcript shows "Denied: spawn-agent" &rarr; Friday acknowledges cancellation.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p3-4">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Multi-agent queue task works</div>
+          <div class="check-detail">Ask Friday to run multiple agents on a project &rarr; queue-task ConfirmDialog shows agent count and strategy &rarr; approve &rarr; parallel PTYs spawn.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="phase-badge phase-3">Phase 3</span>
+        <h3>Opt-In / Opt-Out</h3>
+        <span class="progress" id="p3-opt-progress">0/2</span>
+      </div>
+      <div class="check-item" data-id="p3-5">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">CoE works normally without Friday <span class="check-tag tag-critical">CRITICAL</span></div>
+          <div class="check-detail">Toggle Friday OFF &rarr; mini-orb hides &rarr; all existing dashboard features (projects, agents, recommendations, automation, council chat, ideas) work exactly as before.</div>
+        </div>
+      </div>
+      <div class="check-item" data-id="p3-6">
+        <div class="checkbox" onclick="toggleCheck(this)">&#x2713;</div>
+        <div class="check-content">
+          <div class="check-title">Settings persist across restart</div>
+          <div class="check-detail">Enable Friday, set URL, save xAI key &rarr; close and reopen CoE &rarr; settings are preserved. Friday auto-connects if enabled.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ROLLBACK ==================== -->
+  <div id="tab-rollback" class="tab-content">
+
+    <div class="rollback">
+      <h3>&#x26A0; Emergency Rollback</h3>
+      <p>If Friday causes issues, you can cleanly revert the entire integration with a single command. All 18 commits were merged via <code>--no-ff</code>, making the merge commit fully reversible.</p>
+
+      <h4 style="color:#fca5a5;font-size:13px;margin-bottom:8px">Option A: Revert (preserves history)</h4>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <span class="cmd">git revert</span> --no-commit HEAD<br>
+        <span class="cmd">git commit</span> -m <span class="string">"Revert: Remove Friday Studio Director integration"</span>
+      </div>
+
+      <h4 style="color:#fca5a5;font-size:13px;margin: 16px 0 8px">Option B: Hard reset (destructive)</h4>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <span class="comment"># Reset to the commit BEFORE Friday merge:</span><br>
+        <span class="cmd">git reset</span> --hard d18cd9d
+      </div>
+
+      <div class="warning" style="margin-left:0;margin-top:16px">
+        <span class="warning-icon">&#x26A0;</span>
+        <div>Option B is destructive and will also discard any commits made <em>after</em> the Friday merge. Use Option A unless you're certain.</div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-top:20px">
+      <div class="section-header">
+        <h3>Files Added by Friday</h3>
+      </div>
+      <div class="step">
+        <p style="margin-left:0;font-size:11px;color:var(--muted);line-height:2">
+          <code style="color:var(--fuchsia)">friday-module/</code> &mdash; GENESIS identity + CoE Module (11 tools, knowledge seeds, setup script)<br>
+          <code style="color:var(--fuchsia)">src/components/dashboard/FridayPanel.jsx</code> &mdash; Main Friday view<br>
+          <code style="color:var(--fuchsia)">src/components/dashboard/friday/</code> &mdash; VoiceOrb, FloatingMiniOrb, TranscriptFeed, StudioStatusCards, ConfirmDialog, FridaySettings<br>
+          <code style="color:var(--fuchsia)">src/utils/fridayAudio.js</code> &mdash; Mic capture + audio playback<br>
+          <code style="color:var(--fuchsia)">src/utils/fridayNarration.js</code> &mdash; Ambient narration engine<br>
+          <code style="color:var(--fuchsia)">hq-data/task-queue.json</code> &mdash; Task queue for multi-agent commands<br>
+          <br>
+          <span style="color:var(--yellow)">Modified:</span> Dashboard.jsx, SettingsPanel.jsx, useStore.js, sounds.js, main.cjs, preload.cjs
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Load saved state from localStorage
+const STORAGE_KEY = 'friday-testing-checklist';
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const checked = JSON.parse(saved);
+      checked.forEach(id => {
+        const item = document.querySelector(`[data-id="${id}"]`);
+        if (item) {
+          item.querySelector('.checkbox').classList.add('checked');
+          item.classList.add('completed');
+        }
+      });
+    }
+  } catch (e) {}
+  updateProgress();
+}
+
+function saveState() {
+  const checked = [];
+  document.querySelectorAll('.check-item').forEach(item => {
+    if (item.querySelector('.checkbox.checked') && item.dataset.id) {
+      checked.push(item.dataset.id);
+    }
+  });
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
+  } catch (e) {}
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tabId).classList.add('active');
+}
+
+function toggleCheck(el) {
+  el.classList.toggle('checked');
+  const item = el.closest('.check-item');
+  if (item) item.classList.toggle('completed');
+  updateProgress();
+  saveState();
+}
+
+function updateProgress() {
+  const total = document.querySelectorAll('.checkbox').length;
+  const checked = document.querySelectorAll('.checkbox.checked').length;
+  document.getElementById('progress-count').textContent = checked + ' / ' + total + ' checks';
+  document.getElementById('progress-fill').style.width = (checked / total * 100) + '%';
+
+  // Update section progress counters
+  document.querySelectorAll('.section').forEach(section => {
+    const progEl = section.querySelector('.progress');
+    if (progEl) {
+      const sTotal = section.querySelectorAll('.checkbox').length;
+      const sChecked = section.querySelectorAll('.checkbox.checked').length;
+      progEl.textContent = sChecked + '/' + sTotal;
+    }
+  });
+}
+
+function copyCode(btn) {
+  const block = btn.parentElement;
+  const text = block.textContent.replace('Copy', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+// Init
+loadState();
+</script>
+
+</body>
+</html>

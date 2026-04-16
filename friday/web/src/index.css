@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+@theme {
+  --color-friday-deep: #0B0E14;
+  --color-friday-bg: #111620;
+  --color-friday-surface: #1A1F2E;
+  --color-friday-elevated: #232A3B;
+
+  --color-friday-amber: #F5A623;
+  --color-friday-amber-light: #FFCC66;
+  --color-friday-amber-dim: #8B6914;
+  --color-friday-copper: #E8852A;
+
+  --color-friday-text: #E8E0D4;
+  --color-friday-text-dim: #7A7262;
+  --color-friday-text-muted: #4A4438;
+
+  --color-friday-success: #4ADE80;
+  --color-friday-warning: #FBBF24;
+  --color-friday-error: #F87171;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "DM Sans", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--color-friday-deep);
+  color: var(--color-friday-text);
+}
+
+/* Monospace utility — for transcript text, code displays */
+.font-mono-friday {
+  font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+}
+
+/* Atmospheric noise grain overlay */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Amber glow keyframes */
+@keyframes amber-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(245, 166, 35, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(245, 166, 35, 0.4); }
+}
+
+.friday-glow {
+  animation: amber-pulse 2s ease-in-out infinite;
+}
+
+/* Voice UI: ellipsis breathing animation */
+@keyframes voice-ellipsis-fade {
+  0%, 80%, 100% { opacity: 0; }
+  40% { opacity: 1; }
+}
+
+.voice-ellipsis span {
+  opacity: 0;
+  animation: voice-ellipsis-fade 1.4s infinite;
+}
+
+.voice-ellipsis span:nth-child(1) { animation-delay: 0s; }
+.voice-ellipsis span:nth-child(2) { animation-delay: 0.2s; }
+.voice-ellipsis span:nth-child(3) { animation-delay: 0.4s; }
+
+/* ─── Menu bar ─────────────────────────────────────────────── */
+
+/* Diamond icon pulse — Friday's heartbeat */
+@keyframes diamond-pulse {
+  0%, 100% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 2px rgba(245, 166, 35, 0.2));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(245, 166, 35, 0.5));
+  }
+}
+
+.friday-diamond {
+  animation: diamond-pulse 3s ease-in-out infinite;
+}
+
+/* Bottom glow line — amber HUD divider, bright center, fading edges */
+.menu-glow-line {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(232, 148, 58, 0.15) 15%,
+    rgba(245, 166, 35, 0.35) 50%,
+    rgba(232, 148, 58, 0.15) 85%,
+    transparent 100%
+  );
+}
+
+/* Mode tab hover */
+.menu-tab:hover {
+  color: var(--color-friday-text) !important;
+  background: rgba(245, 166, 35, 0.05) !important;
+}
+
+/* ─── Mobile voice ─────────────────────────────────────────── */
+
+/* Mobile safe areas */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Touch targets — minimum 44px for accessibility */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* PTT idle — subtle pulse */
+@keyframes ptt-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 70, 239, 0.4); }
+  50% { box-shadow: 0 0 0 20px rgba(217, 70, 239, 0); }
+}
+
+.ptt-idle {
+  animation: ptt-pulse 2.5s ease-in-out infinite;
+}
+
+/* PTT active (listening) — strong pulse */
+@keyframes ptt-active-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 70, 239, 0.6); }
+  50% { box-shadow: 0 0 0 28px rgba(217, 70, 239, 0); }
+}
+
+.ptt-active {
+  animation: ptt-active-pulse 1.2s ease-in-out infinite;
+}
+
+/* PTT thinking — spinning ring */
+@keyframes ptt-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.ptt-spin-ring {
+  animation: ptt-spin 1s linear infinite;
+}
+
+.ptt-thinking {
+  animation: ptt-pulse 2s ease-in-out infinite;
+}
+
+/* PTT speaking — expanding pulse rings */
+@keyframes ptt-expand {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+    box-shadow: 0 0 0 0 rgba(217, 70, 239, 0.3);
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+    box-shadow: 0 0 0 0 rgba(217, 70, 239, 0);
+  }
+}
+
+.ptt-expand-ring {
+  border-radius: 9999px;
+  border: 1px solid rgba(217, 70, 239, 0.4);
+  animation: ptt-expand 1.5s ease-out infinite;
+}
+
+.ptt-speaking {
+  animation: ptt-active-pulse 1.5s ease-in-out infinite;
+}

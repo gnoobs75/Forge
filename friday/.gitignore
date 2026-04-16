@@ -1,0 +1,54 @@
+# dependencies (bun install)
+node_modules
+
+# output
+out
+dist
+*.tgz
+
+# code coverage
+coverage
+*.lcov
+
+# logs
+logs
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# caches
+.eslintcache
+.cache
+*.tsbuildinfo
+
+# SQLite runtime databases
+*.db
+*.db-wal
+*.db-shm
+
+# IntelliJ based IDEs
+.idea
+
+# Finder (MacOS) folder config
+.DS_Store
+
+# Claude Code project state
+.claude
+
+# Conversation history database
+data
+
+# Git worktrees
+.worktrees
+
+# SMARTS knowledge files (user-specific, auto-generated)
+/smarts
+
+# Forge-authored modules (AI-generated, user-specific)
+/forge

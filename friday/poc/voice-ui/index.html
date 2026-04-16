@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F.R.I.D.A.Y. — Voice Mode</title>
+  <style>
+    :root {
+      --friday-deep: #0D1117;
+      --friday-bg: #131A24;
+      --friday-surface: #1A2332;
+      --friday-amber: #E8943A;
+      --friday-amber-light: #FFD090;
+      --friday-copper: #C47A3A;
+      --friday-text: #F0E6D8;
+      --friday-text-dim: #6B5540;
+      --friday-error: #F87171;
+    }
+
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(ellipse at center, #0D1117 0%, #090C12 100%);
+      color: var(--friday-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Vignette overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.6) 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .title {
+      position: fixed;
+      top: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      letter-spacing: 0.3em;
+      color: var(--friday-amber);
+      font-size: 1.4rem;
+      font-weight: 300;
+      user-select: none;
+      z-index: 10;
+    }
+
+    .subtitle {
+      position: fixed;
+      top: 62px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--friday-text-dim);
+      font-size: 0.85rem;
+      z-index: 10;
+    }
+
+    .canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .canvas-container canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .status-text {
+      position: fixed;
+      bottom: 140px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      color: var(--friday-text);
+      font-size: 0.9rem;
+      min-height: 1.4em;
+      opacity: 0;
+      transition: opacity 300ms ease;
+      z-index: 10;
+    }
+
+    .status-text.visible {
+      opacity: 1;
+    }
+
+    /* Ellipsis animation */
+    .ellipsis span {
+      opacity: 0;
+      animation: ellipsisFade 1.4s infinite;
+    }
+
+    .ellipsis span:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .ellipsis span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .ellipsis span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes ellipsisFade {
+      0%, 80%, 100% { opacity: 0; }
+      40% { opacity: 1; }
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      z-index: 10;
+      opacity: 0.15;
+      transition: opacity 300ms ease;
+    }
+
+    .controls:hover {
+      opacity: 1;
+    }
+
+    .pill-btn {
+      background: transparent;
+      border: 1px solid var(--friday-amber);
+      color: var(--friday-amber);
+      padding: 8px 20px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 200ms ease, color 200ms ease;
+      user-select: none;
+    }
+
+    .pill-btn:hover {
+      background: var(--friday-amber);
+      color: var(--friday-deep);
+    }
+
+    .pill-btn.active {
+      background: var(--friday-amber);
+      color: var(--friday-deep);
+    }
+
+    .pill-btn.muted {
+      border-color: var(--friday-error);
+      color: var(--friday-error);
+    }
+
+    .pill-btn.muted:hover {
+      background: var(--friday-error);
+      color: var(--friday-deep);
+    }
+
+    .pill-btn.end {
+      border-color: var(--friday-error);
+      color: var(--friday-error);
+    }
+
+    .pill-btn.end:hover {
+      background: var(--friday-error);
+      color: var(--friday-deep);
+    }
+
+    .dev-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      background: var(--friday-surface);
+      padding: 8px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(232, 148, 58, 0.15);
+    }
+
+    .state-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--friday-text-dim);
+      background: transparent;
+      color: var(--friday-text-dim);
+      font-size: 0.55rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 200ms ease, color 200ms ease;
+    }
+
+    .state-btn:hover {
+      border-color: var(--friday-amber);
+      color: var(--friday-amber);
+    }
+
+    .state-btn.active {
+      border-color: var(--friday-amber);
+      background: var(--friday-amber);
+      color: var(--friday-deep);
+    }
+
+    .dev-separator {
+      width: 1px;
+      height: 20px;
+      background: var(--friday-text-dim);
+      opacity: 0.3;
+    }
+
+    .resume-btn {
+      background: transparent;
+      border: 1px solid var(--friday-text-dim);
+      color: var(--friday-text-dim);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: border-color 200ms ease, color 200ms ease;
+    }
+
+    .resume-btn:hover {
+      border-color: var(--friday-amber);
+      color: var(--friday-amber);
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .speed-control input[type="range"] {
+      width: 80px;
+      accent-color: var(--friday-amber);
+    }
+
+    .speed-label {
+      color: var(--friday-text-dim);
+      font-size: 0.7rem;
+      min-width: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="title">F.R.I.D.A.Y.</div>
+  <div class="subtitle">Eve &middot; On</div>
+
+  <div class="canvas-container">
+    <canvas id="orb"></canvas>
+  </div>
+
+  <div id="status" class="status-text"></div>
+
+  <div class="controls">
+    <button class="pill-btn" id="btn-whisper">Whisper</button>
+    <button class="pill-btn" id="btn-mute">Mute</button>
+    <button class="pill-btn end" id="btn-end">End Session</button>
+  </div>
+
+  <div class="dev-controls">
+    <button class="state-btn active" data-state="idle">IDLE</button>
+    <button class="state-btn" data-state="listening">LIST</button>
+    <button class="state-btn" data-state="thinking">THNK</button>
+    <button class="state-btn" data-state="speaking">SPKR</button>
+    <div class="dev-separator"></div>
+    <button class="resume-btn" id="btn-resume">Resume</button>
+    <div class="dev-separator"></div>
+    <div class="speed-control">
+      <input type="range" id="speed-slider" min="0.5" max="3" step="0.1" value="1">
+      <span class="speed-label" id="speed-label">1.0x</span>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * F.R.I.D.A.Y. Voice Conversation UI — Proof of Concept
+     *
+     * Self-contained visual mockup for hands-free voice mode.
+     * No dependencies, no build step. Open directly in browser.
+     *
+     * Design: docs/plans/2026-02-27-voice-conversation-ui-poc-design.md
+     */
+
+    // --- Constants ---
+    const COLORS = {
+      deep: '#0D1117',
+      amber: '#E8943A',
+      amberLight: '#FFD090',
+      copper: '#C47A3A',
+      text: '#F0E6D8',
+      textDim: '#6B5540',
+      error: '#F87171',
+    };
+    const PARTICLE_COUNT = 1000;
+    const SPHERE_RADIUS = 0.35; // fraction of canvas size
+
+    // --- Particle class ---
+    class Particle {
+      constructor(index) {
+        const golden = Math.PI * (3 - Math.sqrt(5));
+        const y = 1 - (index / (PARTICLE_COUNT - 1)) * 2;
+        const radiusAtY = Math.sqrt(1 - y * y);
+        const theta = golden * index;
+
+        this.homeX = Math.cos(theta) * radiusAtY;
+        this.homeY = y;
+        this.homeZ = Math.sin(theta) * radiusAtY;
+
+        this.x = this.homeX;
+        this.y = this.homeY;
+        this.z = this.homeZ;
+
+        this.vx = 0;
+        this.vy = 0;
+        this.vz = 0;
+
+        this.baseSize = 0.4 + Math.random() * 0.6;
+        this.size = this.baseSize;
+        this.baseOpacity = 0.5 + Math.random() * 0.5;
+        this.opacity = this.baseOpacity;
+        this.sparked = 0;
+      }
+
+      project(cx, cy, radius) {
+        const perspective = 2;
+        const scale = perspective / (perspective + this.z);
+        const px = cx + this.x * radius * scale;
+        const py = cy - this.y * radius * scale;
+        const depth = (this.z + 1) / 2; // 0=back, 1=front
+        return { px, py, depth, scale };
+      }
+    }
+
+    // --- Particle sprite cache (GPU-friendly: drawImage instead of per-particle gradients) ---
+    const SPRITE_SIZE = 64;
+    const spriteCache = {};
+
+    function getSprite(r, g, b) {
+      const key = `${r},${g},${b}`;
+      if (spriteCache[key]) return spriteCache[key];
+      const c = document.createElement('canvas');
+      c.width = SPRITE_SIZE;
+      c.height = SPRITE_SIZE;
+      const sCtx = c.getContext('2d');
+      const half = SPRITE_SIZE / 2;
+      const grad = sCtx.createRadialGradient(half, half, 0, half, half, half);
+      grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
+      grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      sCtx.fillStyle = grad;
+      sCtx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+      spriteCache[key] = c;
+      return c;
+    }
+
+    // --- Circuit board background (offscreen, drawn once, stamped each frame) ---
+    const circuitCanvas = document.createElement('canvas');
+    const circuitCtx = circuitCanvas.getContext('2d');
+
+    function drawCircuitBoard() {
+      const dpr = window.devicePixelRatio || 1;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      circuitCanvas.width = vw * dpr;
+      circuitCanvas.height = vh * dpr;
+      circuitCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      circuitCtx.clearRect(0, 0, vw, vh);
+
+      const cx = vw / 2;
+      const cy = vh / 2;
+      const maxDist = Math.sqrt(cx * cx + cy * cy);
+
+      // Seeded PRNG for deterministic pattern
+      let seed = 42;
+      function sr() {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      }
+
+      // Alpha based on distance from center — gentle falloff, stays visible to edges
+      function alphaAt(x, y) {
+        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        return Math.max(0.15, 0.7 * (1 - (dist / maxDist) * 0.7));
+      }
+
+      // Draw a line segment with distance-based alpha
+      function traceLine(x1, y1, x2, y2, width, bright) {
+        const midA = alphaAt((x1 + x2) / 2, (y1 + y2) / 2);
+        const a = bright ? Math.min(midA * 1.4, 0.9) : midA;
+        circuitCtx.beginPath();
+        circuitCtx.moveTo(x1, y1);
+        circuitCtx.lineTo(x2, y2);
+        circuitCtx.strokeStyle = `rgba(180, 125, 60, ${a})`;
+        circuitCtx.lineWidth = width;
+        circuitCtx.stroke();
+      }
+
+      // Draw a circular pad/node
+      function drawPad(x, y, r) {
+        const a = alphaAt(x, y);
+        circuitCtx.beginPath();
+        circuitCtx.arc(x, y, r, 0, Math.PI * 2);
+        circuitCtx.fillStyle = `rgba(180, 125, 60, ${a * 0.8})`;
+        circuitCtx.fill();
+      }
+
+      // Perpendicular turn directions
+      function perps(dx, dy) {
+        if (dx !== 0 && dy !== 0) return [{ dx, dy: 0 }, { dx: 0, dy }];
+        if (dx !== 0) return [{ dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
+        return [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }];
+      }
+
+      // ── LAYER 1: Long radial bus lines from center to edges ──
+      // These are the backbone — like the logo's prominent straight lines
+      const busAngles = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
+      for (const deg of busAngles) {
+        const rad = deg * Math.PI / 180;
+        const startR = 30 + sr() * 40;
+        const endR = maxDist * (0.7 + sr() * 0.3);
+        const sx = cx + Math.cos(rad) * startR;
+        const sy = cy + Math.sin(rad) * startR;
+        const ex = cx + Math.cos(rad) * endR;
+        const ey = cy + Math.sin(rad) * endR;
+        const isBright = (deg % 90 === 0); // cardinal lines brighter
+        traceLine(sx, sy, ex, ey, isBright ? 1.2 : 0.8, isBright);
+        drawPad(ex, ey, 2.5);
+        drawPad(sx, sy, 2);
+
+        // Parallel companion line (offset perpendicular) — like the logo
+        if (sr() > 0.3) {
+          const px = -Math.sin(rad) * (8 + sr() * 6);
+          const py = Math.cos(rad) * (8 + sr() * 6);
+          const pStartR = startR + 20 + sr() * 40;
+          const pEndR = endR * (0.5 + sr() * 0.4);
+          traceLine(
+            cx + Math.cos(rad) * pStartR + px, cy + Math.sin(rad) * pStartR + py,
+            cx + Math.cos(rad) * pEndR + px, cy + Math.sin(rad) * pEndR + py,
+            0.6, false
+          );
+        }
+      }
+
+      // ── LAYER 2: Branching trace networks from center outward ──
+      const dirs8 = [
+        { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+        { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+      ];
+
+      for (const baseDir of dirs8) {
+        const traceCount = 5 + Math.floor(sr() * 4);
+        for (let t = 0; t < traceCount; t++) {
+          let x = cx + baseDir.dx * (30 + sr() * 50);
+          let y = cy + baseDir.dy * (30 + sr() * 50);
+          // Spread traces apart
+          const spread = (t - traceCount / 2) * (10 + sr() * 8);
+          if (baseDir.dx === 0) x += spread;
+          else if (baseDir.dy === 0) y += spread;
+          else { x += spread * 0.5; y -= spread * 0.5; }
+
+          let dx = baseDir.dx, dy = baseDir.dy;
+          const segments = 6 + Math.floor(sr() * 8);
+
+          for (let s = 0; s < segments; s++) {
+            const len = 20 + sr() * 50;
+            const diag = (dx !== 0 && dy !== 0) ? 0.707 : 1;
+            const nx = x + dx * len * diag;
+            const ny = y + dy * len * diag;
+
+            // Allow traces to reach edges
+            if (nx < -20 || nx > vw + 20 || ny < -20 || ny > vh + 20) break;
+
+            traceLine(x, y, nx, ny, 0.7 + sr() * 0.4, false);
+
+            // Node at turn points
+            if (s > 0 && sr() > 0.5) drawPad(x, y, 1.5 + sr() * 1.5);
+
+            x = nx; y = ny;
+
+            // Turn with 50% probability
+            if (sr() > 0.5) {
+              const turns = perps(dx, dy);
+              const pick = turns[Math.floor(sr() * turns.length)];
+              dx = pick.dx; dy = pick.dy;
+            }
+
+            // Branch spur — short perpendicular stub like IC pins
+            if (sr() > 0.65) {
+              const turns = perps(dx, dy);
+              const bd = turns[Math.floor(sr() * turns.length)];
+              const bLen = 10 + sr() * 20;
+              const bDiag = (bd.dx !== 0 && bd.dy !== 0) ? 0.707 : 1;
+              const bx = x + bd.dx * bLen * bDiag;
+              const by = y + bd.dy * bLen * bDiag;
+              traceLine(x, y, bx, by, 0.5, false);
+              drawPad(bx, by, 1.5);
+            }
+          }
+          // End pad
+          drawPad(x, y, 2);
+        }
+      }
+
+      // ── LAYER 3: Short stubs radiating around a "chip" zone near center ──
+      // Mimics the dense pin-grid visible around the icon in the logo
+      const chipRadius = Math.min(vw, vh) * 0.18;
+      for (let i = 0; i < 48; i++) {
+        const angle = (i / 48) * Math.PI * 2 + sr() * 0.1;
+        const innerR = chipRadius + sr() * 15;
+        const outerR = innerR + 15 + sr() * 30;
+        const sx = cx + Math.cos(angle) * innerR;
+        const sy = cy + Math.sin(angle) * innerR;
+        const ex = cx + Math.cos(angle) * outerR;
+        const ey = cy + Math.sin(angle) * outerR;
+        traceLine(sx, sy, ex, ey, 0.6, false);
+        drawPad(ex, ey, 1.5);
+      }
+
+      // ── LAYER 4: Scattered pads in outer regions ──
+      for (let i = 0; i < 40; i++) {
+        const px = sr() * vw;
+        const py = sr() * vh;
+        const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+        if (dist < chipRadius) continue; // skip center
+        drawPad(px, py, 1 + sr() * 2);
+      }
+    }
+
+    drawCircuitBoard();
+    window.addEventListener('resize', () => requestAnimationFrame(drawCircuitBoard));
+
+    // --- Canvas setup ---
+    const canvas = document.getElementById('orb');
+    const ctx = canvas.getContext('2d');
+    let centerX, centerY, orbRadius;
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      canvas.width = vw * dpr;
+      canvas.height = vh * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      centerX = vw / 2;
+      centerY = vh / 2;
+      orbRadius = Math.min(vw, vh) * SPHERE_RADIUS;
+      ctx.fillStyle = COLORS.deep;
+      ctx.fillRect(0, 0, vw, vh);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- Initialize particles ---
+    const particles = [];
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push(new Particle(i));
+    }
+
+    // --- State machine ---
+    const STATES = { IDLE: 'idle', LISTENING: 'listening', THINKING: 'thinking', SPEAKING: 'speaking', ERROR: 'error' };
+    let currentState = STATES.IDLE;
+    let stateTransition = 1; // 0..1
+    const TRANSITION_SPEED = 0.002; // ~500ms
+    let speedMultiplier = 1;
+
+    function setState(newState) {
+      if (newState === currentState) return;
+      currentState = newState;
+      stateTransition = 0;
+    }
+
+    // --- Control state placeholders ---
+    let whisperMode = false;
+    let muted = false;
+    let sessionEnded = false;
+
+    // --- Particle physics ---
+    function updateParticles(dt) {
+      const time = performance.now() * 0.001;
+
+      for (const p of particles) {
+        let forceX = 0, forceY = 0, forceZ = 0;
+        let targetSize = p.baseSize;
+        let targetOpacity = p.baseOpacity;
+
+        switch (currentState) {
+          case STATES.IDLE: {
+            // Spring force toward home
+            forceX = (p.homeX - p.x) * 0.0005;
+            forceY = (p.homeY - p.y) * 0.0005;
+            forceZ = (p.homeZ - p.z) * 0.0005;
+            targetOpacity = p.baseOpacity * 0.6;
+            break;
+          }
+
+          case STATES.LISTENING: {
+            // Contract inward: target is home * 0.8
+            const lTargetX = p.homeX * 0.8;
+            const lTargetY = p.homeY * 0.8;
+            const lTargetZ = p.homeZ * 0.8;
+            forceX = (lTargetX - p.x) * 0.001;
+            forceY = (lTargetY - p.y) * 0.001;
+            forceZ = (lTargetZ - p.z) * 0.001;
+            // Vibration
+            const vibration = Math.sin(time * 20 + p.homeX * 10) * 0.01 * 0.001;
+            forceX += vibration;
+            forceY += vibration;
+            forceZ += vibration;
+            targetOpacity = p.baseOpacity * 0.8;
+            break;
+          }
+
+          case STATES.THINKING: {
+            // Vortex swirl: tangential force perpendicular to angle from center
+            const angle = Math.atan2(p.z, p.x);
+            const tangentialForce = 0.003;
+            forceX += -Math.sin(angle) * tangentialForce;
+            forceZ += Math.cos(angle) * tangentialForce;
+            // Weak home-seeking
+            forceX += (p.homeX * 0.9 - p.x) * 0.0003;
+            forceZ += (p.homeZ * 0.9 - p.z) * 0.0003;
+            // Y-axis home force
+            forceY += (p.homeY - p.y) * 0.0005;
+            targetOpacity = p.baseOpacity * 0.9;
+            break;
+          }
+
+          case STATES.SPEAKING: {
+            // Expand outward with pulse
+            const expandFactor = 1.3;
+            const pulse = Math.sin(time * 6 + p.homeX * 5) * 0.15;
+            const targetDist = expandFactor + pulse;
+            const sTargetX = p.homeX * targetDist;
+            const sTargetY = p.homeY * targetDist;
+            const sTargetZ = p.homeZ * targetDist;
+            forceX = (sTargetX - p.x) * 0.001;
+            forceY = (sTargetY - p.y) * 0.001;
+            forceZ = (sTargetZ - p.z) * 0.001;
+            targetSize = p.baseSize * 1.15;
+            targetOpacity = 0.8 + Math.sin(time * 4) * 0.2;
+            break;
+          }
+
+          case STATES.ERROR: {
+            if (stateTransition < 0.3) {
+              // Scatter with random force
+              forceX = (Math.random() - 0.5) * 0.005;
+              forceY = (Math.random() - 0.5) * 0.005;
+              forceZ = (Math.random() - 0.5) * 0.005;
+            } else {
+              // Reconverge toward home
+              forceX = (p.homeX - p.x) * 0.0008;
+              forceY = (p.homeY - p.y) * 0.0008;
+              forceZ = (p.homeZ - p.z) * 0.0008;
+            }
+            targetOpacity = p.baseOpacity * 0.5;
+            break;
+          }
+        }
+
+        // Random spark — flash a particle bright then let it decay
+        if (!muted && Math.random() < 0.0015) {
+          p.size = p.baseSize * 3;
+          p.opacity = 1;
+          p.sparked = 6; // frames remaining for spark color
+        }
+        if (p.sparked > 0) p.sparked--;
+
+        // Whisper modifier
+        if (whisperMode) {
+          targetSize *= 0.6;
+          targetOpacity *= 0.5;
+        }
+
+        // Mute modifier
+        if (muted) {
+          forceX = 0;
+          forceY = 0;
+          forceZ = 0;
+          targetOpacity *= 0.3;
+        }
+
+        // Apply forces * dt + micro-jitter
+        p.vx += forceX * dt + (Math.random() - 0.5) * 0.00002 * dt;
+        p.vy += forceY * dt + (Math.random() - 0.5) * 0.00002 * dt;
+        p.vz += forceZ * dt + (Math.random() - 0.5) * 0.00002 * dt;
+
+        // Damping
+        p.vx *= 0.97;
+        p.vy *= 0.97;
+        p.vz *= 0.97;
+
+        // Update position from velocity
+        p.x += p.vx;
+        p.y += p.vy;
+        p.z += p.vz;
+
+        // Smooth lerp size and opacity
+        p.size += (targetSize - p.size) * 0.05;
+        p.opacity += (targetOpacity - p.opacity) * 0.05;
+      }
+
+      // Advance transition toward 1
+      if (stateTransition < 1) {
+        stateTransition = Math.min(1, stateTransition + TRANSITION_SPEED * dt);
+      }
+    }
+
+    // --- State color resolver ---
+    function getStateColor() {
+      switch (currentState) {
+        case STATES.IDLE: return { r: 232, g: 148, b: 58 };       // amber-orange
+        case STATES.LISTENING: return { r: 232, g: 148, b: 58 };   // amber-orange
+        case STATES.THINKING: return { r: 196, g: 122, b: 58 };    // copper
+        case STATES.SPEAKING: return { r: 255, g: 208, b: 144 };   // warm golden
+        case STATES.ERROR: return { r: 248, g: 113, b: 113 };      // error red
+        default: return { r: 232, g: 148, b: 58 };
+      }
+    }
+
+    // --- Ring glow effect ---
+    function drawRing(time) {
+      const ringRadius = orbRadius * 1.15;
+      let alpha, lineWidth;
+
+      switch (currentState) {
+        case STATES.IDLE:
+          alpha = 0.15 + Math.sin(time * 0.5) * 0.05;
+          lineWidth = 1.5;
+          break;
+        case STATES.LISTENING:
+          alpha = 0.3 + Math.sin(time * Math.PI) * 0.2;
+          lineWidth = 2;
+          break;
+        case STATES.THINKING:
+          alpha = 0.5;
+          lineWidth = 2.5;
+          break;
+        case STATES.SPEAKING:
+          alpha = 0.6 + Math.sin(time * 3) * 0.2;
+          lineWidth = 3;
+          break;
+        case STATES.ERROR:
+          alpha = 0.5 * (1 - stateTransition);
+          lineWidth = 3;
+          break;
+        default:
+          alpha = 0.15;
+          lineWidth = 1.5;
+      }
+
+      let colorR, colorG, colorB;
+      if (muted) {
+        colorR = 74; colorG = 74; colorB = 74;
+        alpha *= 0.3;
+      } else {
+        const c = getStateColor();
+        colorR = c.r; colorG = c.g; colorB = c.b;
+      }
+
+      if (whisperMode) {
+        alpha *= 0.5;
+      }
+
+      // Outer glow (very subtle)
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${colorR}, ${colorG}, ${colorB}, ${alpha * 0.15})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Inner ring (hair-thin, high contrast)
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${colorR}, ${colorG}, ${colorB}, ${Math.min(alpha * 2.5, 1)})`;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+
+      // THINKING special: spinning arc segment
+      if (currentState === STATES.THINKING) {
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, ringRadius, time * 3, time * 3 + Math.PI * 0.6);
+        ctx.strokeStyle = `rgba(${colorR}, ${colorG}, ${colorB}, ${Math.min(alpha * 3, 1)})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+
+      // SPEAKING special: radiating pulse ring
+      if (currentState === STATES.SPEAKING) {
+        const pulsePhase = (time * 2) % 1;
+        const pulseRadius = ringRadius + pulsePhase * orbRadius * 0.3;
+        const pulseAlpha = Math.min(alpha * 2.5, 1) * (1 - pulsePhase);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${colorR}, ${colorG}, ${colorB}, ${pulseAlpha})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+
+    // --- Electron arcs ---
+    const arcs = [];
+    const ARC_SEGMENTS = 6;
+    const ARC_MAX_LIFE = 12; // frames
+
+    function spawnArc() {
+      // Pick two random front-facing particles
+      const frontParticles = particles.filter(p => p.z > 0);
+      if (frontParticles.length < 2) return;
+      const a = frontParticles[Math.floor(Math.random() * frontParticles.length)];
+      let b = a;
+      // Pick a nearby-ish second particle (not the same one)
+      for (let tries = 0; tries < 10; tries++) {
+        b = frontParticles[Math.floor(Math.random() * frontParticles.length)];
+        const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist > 0.15 && dist < 0.8) break; // sweet spot distance
+      }
+      if (a === b) return;
+
+      // Project endpoints
+      const pa = a.project(centerX, centerY, orbRadius);
+      const pb = b.project(centerX, centerY, orbRadius);
+
+      // Build zig-zag points between pa and pb
+      const points = [{ x: pa.px, y: pa.py }];
+      for (let i = 1; i < ARC_SEGMENTS; i++) {
+        const t = i / ARC_SEGMENTS;
+        const mx = pa.px + (pb.px - pa.px) * t;
+        const my = pa.py + (pb.py - pa.py) * t;
+        // Perpendicular offset for zig-zag
+        const dx = pb.px - pa.px;
+        const dy = pb.py - pa.py;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const nx = -dy / len;
+        const ny = dx / len;
+        const jitter = (Math.random() - 0.5) * len * 0.3;
+        points.push({ x: mx + nx * jitter, y: my + ny * jitter });
+      }
+      points.push({ x: pb.px, y: pb.py });
+
+      arcs.push({ points, life: ARC_MAX_LIFE });
+    }
+
+    function drawArcs() {
+      for (let i = arcs.length - 1; i >= 0; i--) {
+        const arc = arcs[i];
+        const fade = arc.life / ARC_MAX_LIFE;
+
+        // Glow layer
+        ctx.beginPath();
+        ctx.moveTo(arc.points[0].x, arc.points[0].y);
+        for (let j = 1; j < arc.points.length; j++) {
+          ctx.lineTo(arc.points[j].x, arc.points[j].y);
+        }
+        ctx.strokeStyle = `rgba(139, 94, 60, ${fade * 0.12})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Sharp core
+        ctx.beginPath();
+        ctx.moveTo(arc.points[0].x, arc.points[0].y);
+        for (let j = 1; j < arc.points.length; j++) {
+          ctx.lineTo(arc.points[j].x, arc.points[j].y);
+        }
+        ctx.strokeStyle = `rgba(232, 168, 90, ${fade * 0.32})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+
+        arc.life--;
+        if (arc.life <= 0) arcs.splice(i, 1);
+      }
+    }
+
+    // --- Render loop ---
+    let lastTime = performance.now();
+
+    function render(now) {
+      const dt = (now - lastTime) * speedMultiplier;
+      lastTime = now;
+
+      updateParticles(dt);
+
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      // Trail effect
+      ctx.fillStyle = 'rgba(13, 17, 23, 0.15)';
+      ctx.fillRect(0, 0, w, h);
+
+      // Stamp circuit board background each frame (counteracts trail fade to maintain visibility)
+      ctx.globalAlpha = 0.06;
+      ctx.drawImage(circuitCanvas, 0, 0, w, h);
+      ctx.globalAlpha = 1;
+
+      // Sort back to front
+      particles.sort((a, b) => a.z - b.z);
+
+      // Get state color + cached sprites once per frame
+      const stateColor = getStateColor();
+      const sprite = getSprite(stateColor.r, stateColor.g, stateColor.b);
+      const sparkSprite = getSprite(139, 94, 60); // copper-bronze for sparks
+
+      ctx.globalCompositeOperation = 'lighter';
+
+      for (const p of particles) {
+        const { px, py, depth, scale } = p.project(centerX, centerY, orbRadius);
+        const size = p.size * scale * (orbRadius / 140);
+        const alpha = p.opacity * (0.3 + depth * 0.7);
+
+        if (size < 0.2) continue;
+
+        const drawSize = size * 2.4;
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(p.sparked > 0 ? sparkSprite : sprite, px - drawSize, py - drawSize, drawSize * 2, drawSize * 2);
+      }
+      ctx.globalAlpha = 1;
+
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Spawn occasional electron arcs (idle, listening, speaking only)
+      const arcStates = [STATES.IDLE, STATES.LISTENING, STATES.SPEAKING];
+      if (!muted && !sessionEnded && arcStates.includes(currentState) && Math.random() < 0.03) {
+        spawnArc();
+      }
+      drawArcs();
+
+      // Draw ring glow after particles
+      const time = performance.now() * 0.001;
+      drawRing(time);
+
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+
+    // --- Canned responses ---
+    const RESPONSES = [
+      "I found 3 unread emails from today.",
+      "Your Docker containers are all healthy.",
+      "The build passed. 957 tests, zero failures.",
+      "Checking your calendar... you're free until 3pm.",
+      "I've summarized the PR \u2014 4 files changed, 2 comments.",
+    ];
+    let responseIndex = 0;
+
+    // --- Auto-demo state ---
+    let autoDemo = true;
+    let demoStep = 0;
+    let demoTimer = null;
+    let typewriterInterval = null;
+
+    const statusEl = document.getElementById('status');
+
+    // --- Status text controller ---
+    function setStatus(text, typewriter) {
+      // Clear any running typewriter
+      if (typewriterInterval) {
+        clearInterval(typewriterInterval);
+        typewriterInterval = null;
+      }
+
+      // Clear status element's children via DOM methods
+      while (statusEl.firstChild) {
+        statusEl.removeChild(statusEl.firstChild);
+      }
+
+      if (typewriter && text.length > 0) {
+        statusEl.classList.add('visible');
+        let charIndex = 0;
+        typewriterInterval = setInterval(() => {
+          if (charIndex < text.length) {
+            statusEl.appendChild(document.createTextNode(text[charIndex]));
+            charIndex++;
+          } else {
+            clearInterval(typewriterInterval);
+            typewriterInterval = null;
+          }
+        }, 30 / speedMultiplier);
+      } else if (text === 'Listening...') {
+        statusEl.appendChild(document.createTextNode('Listening'));
+        const ellipsisWrap = document.createElement('span');
+        ellipsisWrap.className = 'ellipsis';
+        for (let i = 0; i < 3; i++) {
+          const dot = document.createElement('span');
+          dot.appendChild(document.createTextNode('.'));
+          ellipsisWrap.appendChild(dot);
+        }
+        statusEl.appendChild(ellipsisWrap);
+        statusEl.classList.add('visible');
+      } else {
+        statusEl.textContent = text;
+        statusEl.classList.toggle('visible', !!text);
+      }
+    }
+
+    // --- Auto-demo schedule ---
+    const DEMO_SCHEDULE = [
+      { state: STATES.IDLE, duration: 3000, status: 'Ready.', typewriter: false },
+      { state: STATES.LISTENING, duration: 3000, status: 'Listening...', typewriter: false },
+      { state: STATES.THINKING, duration: 2000, status: 'Processing...', typewriter: false },
+      { state: STATES.SPEAKING, duration: 4000, status: null, typewriter: true },
+      { state: STATES.IDLE, duration: 2000, status: '', typewriter: false },
+    ];
+
+    function runDemoStep() {
+      if (!autoDemo) return;
+
+      const step = DEMO_SCHEDULE[demoStep % DEMO_SCHEDULE.length];
+      setState(step.state);
+
+      if (step.state === STATES.SPEAKING) {
+        const response = RESPONSES[responseIndex % RESPONSES.length];
+        responseIndex++;
+        setStatus(response, true);
+      } else {
+        setStatus(step.status, step.typewriter);
+      }
+
+      // Update dev control active class to match current state
+      document.querySelectorAll('.state-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.state === step.state)
+      );
+
+      demoStep++;
+      demoTimer = setTimeout(runDemoStep, step.duration / speedMultiplier);
+    }
+
+    // Start the auto-demo
+    runDemoStep();
+
+    // --- Dev control buttons (enhanced) ---
+    const STATUS_FOR_STATE = {
+      [STATES.IDLE]: 'Ready.',
+      [STATES.LISTENING]: 'Listening...',
+      [STATES.THINKING]: 'Processing...',
+      [STATES.SPEAKING]: '',
+      [STATES.ERROR]: 'Error.',
+    };
+
+    document.querySelectorAll('.state-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (sessionEnded) return;
+        autoDemo = false;
+        if (demoTimer) {
+          clearTimeout(demoTimer);
+          demoTimer = null;
+        }
+
+        setState(btn.dataset.state);
+        setStatus(STATUS_FOR_STATE[btn.dataset.state] || '', false);
+
+        document.querySelectorAll('.state-btn').forEach(b =>
+          b.classList.toggle('active', b === btn)
+        );
+      });
+    });
+
+    // --- Resume button ---
+    document.getElementById('btn-resume').addEventListener('click', () => {
+      if (sessionEnded) return;
+      autoDemo = true;
+      demoStep = 0;
+      if (demoTimer) {
+        clearTimeout(demoTimer);
+        demoTimer = null;
+      }
+      runDemoStep();
+    });
+
+    // --- Speed slider ---
+    const speedSlider = document.getElementById('speed-slider');
+    const speedLabel = document.getElementById('speed-label');
+    speedSlider.addEventListener('input', () => {
+      speedMultiplier = parseFloat(speedSlider.value);
+      speedLabel.textContent = speedMultiplier.toFixed(1) + 'x';
+    });
+
+    // --- Control buttons ---
+    const subtitleEl = document.querySelector('.subtitle');
+    const btnWhisper = document.getElementById('btn-whisper');
+    const btnMute = document.getElementById('btn-mute');
+    const btnEnd = document.getElementById('btn-end');
+
+    // Whisper toggle
+    btnWhisper.addEventListener('click', () => {
+      if (sessionEnded) return;
+      whisperMode = !whisperMode;
+      btnWhisper.classList.toggle('active', whisperMode);
+      subtitleEl.textContent = whisperMode ? 'Eve \u00B7 Whisper' : 'Eve \u00B7 On';
+    });
+
+    // Mute toggle
+    btnMute.addEventListener('click', () => {
+      if (sessionEnded) return;
+      muted = !muted;
+      btnMute.classList.toggle('muted', muted);
+      btnMute.textContent = muted ? 'Unmute' : 'Mute';
+      if (!autoDemo) {
+        setStatus(muted ? 'Muted' : 'Ready.', false);
+      }
+    });
+
+    // End Session
+    btnEnd.addEventListener('click', () => {
+      if (sessionEnded) return;
+      sessionEnded = true;
+      autoDemo = false;
+      if (demoTimer) {
+        clearTimeout(demoTimer);
+        demoTimer = null;
+      }
+      setState(STATES.ERROR);
+      setStatus('Session ended.', false);
+      setTimeout(() => {
+        for (const p of particles) {
+          p.opacity = 0;
+        }
+      }, 1500);
+    });
+  </script>
+</body>
+</html>

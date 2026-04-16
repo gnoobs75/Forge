@@ -1,0 +1,44 @@
+{
+  "name": "friday",
+  "version": "0.1.0",
+  "description": "F.R.I.D.A.Y. — AI personal assistant inspired by Tony Stark's assistant",
+  "module": "src/main.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "friday": "src/main.ts"
+  },
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "dev": "bun --watch run src/main.ts",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "lint": "bunx @biomejs/biome check src/ tests/",
+    "lint:fix": "bunx @biomejs/biome check --write src/ tests/",
+    "format": "bunx @biomejs/biome format --write src/ tests/",
+    "typecheck": "tsc --noEmit && cd web && tsc --noEmit",
+    "web:dev": "cd web && bunx vite",
+    "web:build": "cd web && bunx vite build",
+    "serve": "bun run src/main.ts serve"
+  },
+  "dependencies": {
+    "@ai-sdk/xai": "^3.0.59",
+    "@opentui-ui/toast": "^0.0.5",
+    "@opentui/core": "^0.1.81",
+    "@opentui/react": "^0.1.81",
+    "ai": "^6.0.103",
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "googleapis": "^171.4.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.14",
+    "biome": "^0.3.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
