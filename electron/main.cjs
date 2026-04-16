@@ -492,6 +492,98 @@ ipcMain.handle('hq:show-in-folder', async (event, relativePath) => {
   shell.showItemInFolder(fullPath);
 });
 
+// ─── Project Environment (folder, launchers, terminal, vscode) ───
+ipcMain.handle('project:open-folder', async (event, repoPath) => {
+  if (!repoPath || typeof repoPath !== 'string') {
+    return { ok: false, error: 'repoPath required' };
+  }
+  if (!fs.existsSync(repoPath)) {
+    return { ok: false, error: `path not found: ${repoPath}` };
+  }
+  try {
+    const err = await shell.openPath(repoPath);
+    if (err) return { ok: false, error: err };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('project:run-launcher', async (event, repoPath, script) => {
+  if (!repoPath || typeof repoPath !== 'string') {
+    return { ok: false, error: 'repoPath required' };
+  }
+  if (!script || typeof script !== 'string') {
+    return { ok: false, error: 'script required' };
+  }
+  if (!fs.existsSync(repoPath)) {
+    return { ok: false, error: `repoPath not found: ${repoPath}` };
+  }
+  const resolvedRepo = path.resolve(repoPath);
+  const resolvedScript = path.resolve(path.join(resolvedRepo, script));
+  if (!resolvedScript.startsWith(resolvedRepo + path.sep) && resolvedScript !== resolvedRepo) {
+    return { ok: false, error: 'script path escapes repoPath' };
+  }
+  if (!fs.existsSync(resolvedScript)) {
+    return { ok: false, error: `script not found: ${resolvedScript}` };
+  }
+  try {
+    const err = await shell.openPath(resolvedScript);
+    if (err) return { ok: false, error: err };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('project:open-terminal', async (event, repoPath) => {
+  if (!repoPath || typeof repoPath !== 'string') {
+    return { ok: false, error: 'repoPath required' };
+  }
+  if (!fs.existsSync(repoPath)) {
+    return { ok: false, error: `path not found: ${repoPath}` };
+  }
+  try {
+    const { spawn } = require('child_process');
+    const child = spawn('cmd.exe', ['/c', 'start', '', 'cmd'], {
+      cwd: repoPath,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: false,
+    });
+    child.unref();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('project:open-vscode', async (event, repoPath) => {
+  if (!repoPath || typeof repoPath !== 'string') {
+    return { ok: false, error: 'repoPath required' };
+  }
+  if (!fs.existsSync(repoPath)) {
+    return { ok: false, error: `path not found: ${repoPath}` };
+  }
+  try {
+    const { spawn } = require('child_process');
+    const child = spawn('code', [repoPath], {
+      detached: true,
+      stdio: 'ignore',
+      shell: true,
+      windowsHide: true,
+    });
+    child.on('error', () => {});
+    child.unref();
+    return { ok: true };
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return { ok: false, error: 'VS Code CLI (`code`) not found on PATH' };
+    }
+    return { ok: false, error: err.message };
+  }
+});
+
 // Git data IPC — reads git info from game repos
 ipcMain.handle('git:get-data', async (event, repoPath) => {
   const { execSync } = require('child_process');
