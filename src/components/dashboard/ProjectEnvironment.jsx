@@ -95,6 +95,43 @@ export default function ProjectEnvironment({ project }) {
     catch (err) { flash(err.message); }
   };
 
+  const onAddLauncher = async () => {
+    playSound('click');
+    try {
+      const pick = await api?.project?.pickLauncher(project.repoPath);
+      if (!pick || pick.canceled) return;
+      if (pick.ok === false) {
+        flash(pick.error || 'Picker failed');
+        return;
+      }
+      const newEntry = {
+        name: deriveLauncherName(pick.relativePath),
+        script: pick.relativePath,
+      };
+      const cfgPath = `projects/${project.slug}/project.json`;
+      const read = await api.hq.readFile(cfgPath);
+      if (!read?.ok) {
+        flash('Could not read project.json');
+        return;
+      }
+      let cfg;
+      try { cfg = JSON.parse(read.data); }
+      catch { flash('project.json is not valid JSON'); return; }
+      const existing = Array.isArray(cfg.launchers) ? cfg.launchers : [];
+      if (existing.some((l) => l.script === newEntry.script)) {
+        flash(`Launcher for "${newEntry.script}" already exists`);
+        return;
+      }
+      cfg.launchers = [...existing, newEntry];
+      const write = await api.hq.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
+      if (!write?.ok) {
+        flash(write?.error || 'Could not save project.json');
+      }
+    } catch (err) {
+      flash(err.message);
+    }
+  };
+
   return (
     <div className="card space-y-4">
       <h2 className="text-xs font-mono font-semibold text-forge-text-secondary uppercase tracking-wider border-l-2 border-forge-accent pl-3">
@@ -118,12 +155,10 @@ export default function ProjectEnvironment({ project }) {
         </div>
       )}
 
-      {hasRepoPath && (hasLaunchers || hasPorts) && (
-        <div className="border-t border-forge-border" />
-      )}
+      {hasRepoPath && <div className="border-t border-forge-border" />}
 
-      {/* Row 2: Launchers */}
-      {hasLaunchers && (
+      {/* Row 2: Launchers — always shown when repoPath exists (for the + button) */}
+      {hasRepoPath && (
         <div className="space-y-2">
           <div className="text-[10px] text-forge-text-muted uppercase tracking-wider">
             Launchers
@@ -154,11 +189,21 @@ export default function ProjectEnvironment({ project }) {
                 </button>
               );
             })}
+            <button
+              onClick={onAddLauncher}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-forge-border
+                         text-forge-text-muted hover:text-forge-accent-blue hover:border-forge-accent-blue/50
+                         transition-all text-[11px]"
+              title="Browse to a .bat / .vbs / .cmd file inside the project"
+            >
+              <span className="text-sm leading-none">+</span>
+              <span>{hasLaunchers ? 'Add Launcher' : 'Add a Launcher'}</span>
+            </button>
           </div>
         </div>
       )}
 
-      {hasLaunchers && hasPorts && <div className="border-t border-forge-border" />}
+      {hasRepoPath && hasPorts && <div className="border-t border-forge-border" />}
 
       {/* Row 3: Ports */}
       {hasPorts && (
@@ -196,6 +241,16 @@ export default function ProjectEnvironment({ project }) {
       )}
     </div>
   );
+}
+
+function deriveLauncherName(relativePath) {
+  const base = relativePath.split(/[\\/]/).pop() || relativePath;
+  const noExt = base.replace(/\.[^.]+$/, '');
+  return noExt
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ') || base;
 }
 
 function ActionButton({ onClick, label }) {

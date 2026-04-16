@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, safeStorage, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, safeStorage, Notification } = require('electron');
 const path = require('path');
 const os = require('os');
 const pty = require('node-pty');
@@ -553,6 +553,39 @@ ipcMain.handle('project:open-terminal', async (event, repoPath) => {
     });
     child.unref();
     return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('project:pick-launcher', async (event, repoPath) => {
+  if (!repoPath || typeof repoPath !== 'string') {
+    return { ok: false, error: 'repoPath required' };
+  }
+  if (!fs.existsSync(repoPath)) {
+    return { ok: false, error: `path not found: ${repoPath}` };
+  }
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Pick a launcher script',
+      defaultPath: repoPath,
+      properties: ['openFile'],
+      filters: [
+        { name: 'Launcher scripts', extensions: ['bat', 'cmd', 'vbs', 'ps1', 'exe'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    if (result.canceled || !result.filePaths?.length) {
+      return { ok: false, canceled: true };
+    }
+    const absScript = result.filePaths[0];
+    const resolvedRepo = path.resolve(repoPath);
+    const resolvedScript = path.resolve(absScript);
+    if (!resolvedScript.startsWith(resolvedRepo + path.sep)) {
+      return { ok: false, error: 'Selected file is outside the project folder' };
+    }
+    const relativePath = path.relative(resolvedRepo, resolvedScript).replace(/\\/g, '/');
+    return { ok: true, relativePath, absolutePath: resolvedScript };
   } catch (err) {
     return { ok: false, error: err.message };
   }

@@ -205,6 +205,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     runLauncher:  (repoPath, script) => ipcRenderer.invoke('project:run-launcher', repoPath, script),
     openTerminal: (repoPath)         => ipcRenderer.invoke('project:open-terminal', repoPath),
     openVSCode:   (repoPath)         => ipcRenderer.invoke('project:open-vscode', repoPath),
+    pickLauncher: (repoPath)         => ipcRenderer.invoke('project:pick-launcher', repoPath),
   },
 
   // HQ Data
