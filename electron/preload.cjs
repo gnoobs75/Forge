@@ -199,6 +199,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     refresh: () => ipcRenderer.invoke('ports:refresh'),
   },
 
+  // Project Environment (folder, launchers, terminal, vscode)
+  project: {
+    openFolder:   (repoPath)         => ipcRenderer.invoke('project:open-folder', repoPath),
+    runLauncher:  (repoPath, script) => ipcRenderer.invoke('project:run-launcher', repoPath, script),
+    openTerminal: (repoPath)         => ipcRenderer.invoke('project:open-terminal', repoPath),
+    openVSCode:   (repoPath)         => ipcRenderer.invoke('project:open-vscode', repoPath),
+  },
+
   // HQ Data
   hq: {
     readFile: (path) => ipcRenderer.invoke('hq:read-file', path),
