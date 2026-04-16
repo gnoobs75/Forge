@@ -38,22 +38,16 @@ export default function ProjectEnvironment({ project }) {
   useEffect(() => {
     if (!api?.ports?.onStatus) return;
     const unsubscribe = api.ports.onStatus((payload) => {
-      // payload shape from runHealthCheck() varies; normalize to { [portNumber]: {up, latencyMs} }
+      // runHealthCheck() broadcasts { health: [...], collisions: [...] }
+      // entries: { port, service, status: 'up'|'down'|'occupied', latencyMs }
       if (!payload) return;
+      const entries = Array.isArray(payload.health) ? payload.health : (Array.isArray(payload) ? payload : []);
       const next = {};
-      const collect = (entries) => {
-        if (!Array.isArray(entries)) return;
-        for (const e of entries) {
-          if (typeof e?.port === 'number') {
-            next[e.port] = { up: !!e.up, latencyMs: e.latencyMs ?? null };
-          }
-        }
-      };
-      collect(payload.results);
-      collect(payload.registered);
-      collect(payload.scanned);
-      collect(payload.ports);
-      if (Array.isArray(payload)) collect(payload);
+      for (const e of entries) {
+        if (typeof e?.port !== 'number') continue;
+        const up = e.status === 'up' || e.status === 'occupied' || e.up === true;
+        next[e.port] = { up, latencyMs: e.latencyMs ?? null };
+      }
       setPortStatus((prev) => ({ ...prev, ...next }));
     });
     // Kick a refresh so we have data immediately
@@ -95,12 +89,6 @@ export default function ProjectEnvironment({ project }) {
     catch (err) { flash(err.message); }
   };
 
-  const onOpenVSCode = async () => {
-    playSound('click');
-    try { handleResult(await api?.project?.openVSCode(project.repoPath)); }
-    catch (err) { flash(err.message); }
-  };
-
   const onRunLauncher = async (script) => {
     playSound('click');
     try { handleResult(await api?.project?.runLauncher(project.repoPath, script)); }
@@ -126,7 +114,6 @@ export default function ProjectEnvironment({ project }) {
             <ActionButton onClick={onOpenFolder} label="Open Folder" />
             <ActionButton onClick={onCopyPath} label={copied ? 'Copied!' : 'Copy'} />
             <ActionButton onClick={onOpenTerminal} label="Terminal" />
-            <ActionButton onClick={onOpenVSCode} label="VS Code" />
           </div>
         </div>
       )}
