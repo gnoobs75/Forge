@@ -9,8 +9,8 @@
 function paths() {
   const fp = (typeof window !== 'undefined' && window.forgePaths) || null;
   return {
-    hqData: fp?.hqData || 'C:\\Claude\\Samurai\\hq-data',
-    agentsDir: fp?.agentsDir || 'C:\\Claude\\Samurai\\Forge\\agents',
+    hqData: fp?.hqData || '',
+    agentsDir: fp?.agentsDir || '',
   };
 }
 

@@ -4,8 +4,9 @@
  */
 const fs = require('fs');
 const path = require('path');
+const PATHS = require('../config/paths.cjs');
 
-const HQ_ROOT = 'C:\\Claude\\Samurai\\hq-data';
+const HQ_ROOT = PATHS.hqData;
 
 /**
  * Generate a daily activity report HTML

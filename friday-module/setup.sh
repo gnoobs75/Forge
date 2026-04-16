@@ -37,4 +37,4 @@ else
   echo "[friday:setup] GENESIS already exists at $GENESIS_DST (not overwriting)"
 fi
 
-echo "[friday:setup] Done! Set FORGE_HQ_DATA env var if hq-data is not at C:/Claude/Samurai/hq-data"
+echo "[friday:setup] Done! Set FORGE_HQ_DATA env var if your hq-data lives outside Forge/hq-data or its parent dir"

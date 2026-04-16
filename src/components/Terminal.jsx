@@ -305,7 +305,7 @@ export default function Terminal({ scope }) {
           // Custom prompt (e.g. idea analysis) — use createImplementation
           window.electronAPI.terminal.createImplementation(
             session.id, cols, rows,
-            session.cwd || session.repoPath || 'C:\\Claude\\Samurai',
+            session.cwd || session.repoPath || window.forgePaths?.forgeRoot || '',
             session.prompt,
             session.flags || '',
             session.mode || 'auto',
@@ -335,7 +335,7 @@ export default function Terminal({ scope }) {
           });
           const flags = '--dangerously-skip-permissions';
           window.electronAPI.terminal.createImplementation(
-            session.id, cols, rows, session.repoPath || 'C:\\Claude\\Samurai', prompt, flags, 'auto', modelFlag
+            session.id, cols, rows, session.repoPath || window.forgePaths?.forgeRoot || '', prompt, flags, 'auto', modelFlag
           );
         }
       } else {

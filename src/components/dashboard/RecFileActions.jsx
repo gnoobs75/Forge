@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { playSound } from '../../utils/sounds';
 
-const HQ_ROOT = 'C:\\Claude\\Samurai\\hq-data';
-
 /**
  * File path display + copy buttons for a recommendation card.
  * Shows: file path (click to copy) | folder icon (open Explorer) | @Agent copy | claude CLI copy
@@ -13,7 +11,9 @@ export default function RecFileActions({ rec }) {
   const filePath = rec._filePath;
   if (!filePath) return null;
 
-  const fullPath = `${HQ_ROOT}\\${filePath.replace(/\//g, '\\')}`;
+  const hqRoot = window.forgePaths?.hqData || '';
+  const sep = hqRoot.includes('\\') ? '\\' : '/';
+  const fullPath = `${hqRoot}${sep}${filePath.replace(/\//g, sep)}`;
   const displayPath = filePath; // relative path for display
 
   const flash = (key) => {

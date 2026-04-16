@@ -521,10 +521,13 @@ function KanbanView({ features, expandedFeature, setExpandedFeature }) {
 }
 
 function buildFeatureScanPrompt(slug, project) {
+  const hqRoot = window.forgePaths?.hqData || '';
+  const sep = hqRoot.includes('\\') ? '\\\\' : '/';
+  const projectDir = `${hqRoot.replace(/\\/g, '\\\\')}${sep}projects${sep}${slug}`;
   return `Scan the ${project.name} codebase at ${project.repoPath} and generate a comprehensive feature registry.
 
 STEPS:
-1. Read C:\\Claude\\Samurai\\hq-data\\projects\\${slug}\\context.md for project context
+1. Read ${projectDir}${sep}context.md for project context
 2. Explore the codebase — directory structure, major systems, source files
 3. For each feature/system you find, determine:
    - name: Short descriptive name
@@ -535,7 +538,7 @@ STEPS:
    - codeFootprint: Array of 2-3 key file paths
    - confidence: "high" | "medium" | "low"
 
-4. Write the result to C:\\Claude\\Samurai\\hq-data\\projects\\${slug}\\features.json:
+4. Write the result to ${projectDir}${sep}features.json:
 {
   "lastScanned": "<ISO timestamp>",
   "scannedBy": "Tech Architect",

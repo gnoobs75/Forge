@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SessionRegistry } from "./session-registry.ts";
 import { readJsonSafe, getProjectSlugs } from "../studio/hq-utils.ts";
+import { forgeRoot } from "../../config/paths.ts";
 
 type BroadcastFn = (msg: Record<string, unknown>) => void;
 let broadcastFn: BroadcastFn | null = null;
@@ -238,7 +239,7 @@ export async function handleMobileRoute(
           command: "spawn-implementation",
           args: {
             scopeId,
-            cwd: repoPath || "C:\\Claude\\Samurai",
+            cwd: repoPath || forgeRoot,
             prompt,
             mode,
             modelFlag: "",

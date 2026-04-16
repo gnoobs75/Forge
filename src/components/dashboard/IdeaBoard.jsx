@@ -124,7 +124,7 @@ export default function IdeaBoard({ projectFilter: externalProjectFilter }) {
     startAgentSession(
       { ...leadAgent, name: 'Team Analysis' },
       project,
-      { prompt: analysisPrompt, cwd: 'C:\\Claude\\Samurai', mode: 'auto', flags: '' }
+      { prompt: analysisPrompt, cwd: window.forgePaths?.forgeRoot || '', mode: 'auto', flags: '' }
     );
 
     playSound('spawn');

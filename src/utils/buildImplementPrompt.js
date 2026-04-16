@@ -1,7 +1,7 @@
 function paths() {
   const fp = (typeof window !== 'undefined' && window.forgePaths) || null;
   return {
-    hqData: fp?.hqData || 'C:\\Claude\\Samurai\\hq-data',
+    hqData: fp?.hqData || '',
   };
 }
 
