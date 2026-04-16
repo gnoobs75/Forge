@@ -8,6 +8,7 @@ import ChartRenderer from './ChartRenderer';
 import KnowledgeHub from './KnowledgeHub';
 import ProgressDetail from './ProgressDetail';
 import FeatureOverview from './FeatureOverview';
+import ProjectEnvironment from './ProjectEnvironment';
 import SocialHub from './SocialHub';
 import DraggableTabBar from './DraggableTabBar';
 
@@ -148,11 +149,6 @@ export default function ProjectDetail({ slug }) {
           <p className="text-sm text-forge-text-secondary mt-1">
             {project.description}
           </p>
-          {project.repoPath && (
-            <p className="text-[10px] text-forge-text-muted mt-1 font-mono">
-              {project.repoPath}
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -185,6 +181,9 @@ export default function ProjectDetail({ slug }) {
           </div>
         </div>
       )}
+
+      {/* Environment */}
+      <ProjectEnvironment project={project} />
 
       {/* Phase Progress Bar */}
       <div className="card">
