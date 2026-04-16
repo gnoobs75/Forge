@@ -567,10 +567,11 @@ ipcMain.handle('project:open-vscode', async (event, repoPath) => {
   }
   try {
     const { spawn } = require('child_process');
-    const child = spawn('code', [repoPath], {
+    const codeBin = process.platform === 'win32' ? 'code.cmd' : 'code';
+    const child = spawn(codeBin, [repoPath], {
       detached: true,
       stdio: 'ignore',
-      shell: true,
+      shell: false,
       windowsHide: true,
     });
     child.on('error', () => {});
