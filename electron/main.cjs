@@ -2742,7 +2742,7 @@ app.whenReady().then(async () => {
     // Wait for the main window to finish loading so the renderer is alive
     // to receive sessionTabs:update broadcasts from auto-restore.
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.once('did-finish-load', async () => {
+      const runAutoRestore = async () => {
         try {
           const results = await tracker.autoRestore();
           const ok = results.filter(r => r.ok).length;
@@ -2750,7 +2750,12 @@ app.whenReady().then(async () => {
         } catch (err) {
           console.error('[sessions] autoRestore failed:', err);
         }
-      });
+      };
+      if (mainWindow.webContents.isLoading()) {
+        mainWindow.webContents.once('did-finish-load', runAutoRestore);
+      } else {
+        runAutoRestore();
+      }
     }
   } catch (err) {
     console.error('[sessions] bootstrap failed:', err);
