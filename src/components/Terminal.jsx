@@ -273,7 +273,7 @@ export default function Terminal({ scope }) {
 
   // Check if an ID belongs to a session (not a scope terminal or system terminal)
   const isSessionId = useCallback((id) => {
-    return id && (id.startsWith('impl-') || id.startsWith('agent-') || id.startsWith('auto-'));
+    return id && (id.startsWith('impl-') || id.startsWith('agent-') || id.startsWith('auto-') || id.startsWith('tool-'));
   }, []);
 
   // System-managed terminal IDs that should NOT be killed on cleanup
@@ -338,6 +338,14 @@ export default function Terminal({ scope }) {
             session.id, cols, rows, session.repoPath || window.forgePaths?.forgeRoot || '', prompt, flags, 'auto', modelFlag
           );
         }
+      } else if (session.type === 'tool') {
+        // Project Tools launcher — spawn a plain shell and type the command
+        window.electronAPI.terminal.createTool(
+          session.id, cols, rows,
+          session.cwd,
+          session.command,
+          session.env || null
+        );
       } else {
         // Regular implementation — use buildImplementPrompt
         const rec = store.recommendations.find(r =>
@@ -441,6 +449,16 @@ export default function Terminal({ scope }) {
         const entry = terminalsRef.current.get(scopeId);
         if (entry) {
           entry.term.writeln(`\r\n\x1b[33m[Process exited with code ${exitCode}]\x1b[0m`);
+        }
+
+        // Tool sessions: status-only; don't trigger rec-resolution or sfx.
+        if (scopeId.startsWith('tool-')) {
+          const store = useStore.getState();
+          const session = store.implementationSessions.find(s => s.id === scopeId);
+          if (!session) return;
+          const status = exitCode === 0 ? 'done' : 'failed';
+          store.updateSessionStatus(scopeId, status, exitCode);
+          return;
         }
 
         // Handle session exit (impl-, agent-, auto- prefixed IDs)
