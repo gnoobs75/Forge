@@ -15,6 +15,7 @@ import DraggableTabBar from './DraggableTabBar';
 const MarketingBuilder = lazy(() => import('./MarketingBuilder'));
 import IdeaBoard from './IdeaBoard';
 import ProjectDocs from './ProjectDocs';
+import ProjectTools from './ProjectTools';
 import ProjectApiSpecs from './ProjectApiSpecs';
 import ProjectBugs, { getOpenBugCount } from './ProjectBugs';
 
@@ -307,6 +308,9 @@ export default function ProjectDetail({ slug }) {
             <p className="text-xs text-forge-text-muted mt-1">Ask <code className="text-forge-accent-blue">@DevOpsEngineer</code> to set up integrations</p>
           </div>
         )}
+        {activeGameTab === 'tools' && (
+          <ProjectTools slug={slug} project={project} />
+        )}
         {activeGameTab === 'docs' && (
           <ProjectDocs slug={slug} />
         )}
@@ -322,6 +326,7 @@ const GAME_TABS = [
   { id: 'ideas', label: 'Ideas', icon: '\uD83D\uDCA1' },
   { id: 'api', label: 'API', icon: '\uD83D\uDD0C' },
   { id: 'integrations', label: 'Integrations', icon: '\uD83D\uDD17' },
+  { id: 'tools', label: 'Project Tools', icon: '\uD83D\uDD27' },
   { id: 'docs', label: 'Docs', icon: '\uD83D\uDCC4' },
 ];
 

@@ -775,6 +775,43 @@ export const useStore = create((set, get) => ({
     return session;
   },
 
+  // Start a Project Tools launcher session
+  startToolSession: (tool, project) => {
+    if (!tool || !project) return null;
+    const PHASE_COLORS = {
+      discovery: '#8B5CF6', design: '#06B6D4', build: '#3B82F6',
+      test: '#EAB308', deploy: '#F97316', maintain: '#22C55E',
+    };
+    const agentColor = project.color || PHASE_COLORS[project.phase] || '#64748b';
+
+    const rawCwd = tool.cwd || '.';
+    const isAbsolute = /^([a-zA-Z]:[\\/]|\\\\|\/)/.test(rawCwd);
+    const cwd = isAbsolute
+      ? rawCwd
+      : `${(project.repoPath || '').replace(/[\\/]+$/, '')}/${rawCwd.replace(/^[\\/]+/, '')}`;
+
+    const session = {
+      id: `tool-${tool.id}-${Date.now()}`,
+      type: 'tool',
+      toolId: tool.id,
+      toolName: tool.name,
+      command: tool.command,
+      cwd,
+      env: tool.env || null,
+      projectSlug: project.slug,
+      repoPath: project.repoPath,
+      agentName: tool.name,
+      agentColor,
+      label: `${tool.name} \u2014 ${project.name}`,
+      status: 'running',
+      exitCode: null,
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+    };
+    set(state => ({ implementationSessions: [...state.implementationSessions, session] }));
+    return session;
+  },
+
   // Emit an automation event — matches chains and triggers, spawns tasks with stagger
   emitAutomationEvent: (eventType, payload = {}) => {
     const state = get();
