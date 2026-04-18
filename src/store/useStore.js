@@ -791,7 +791,7 @@ export const useStore = create((set, get) => ({
       : `${(project.repoPath || '').replace(/[\\/]+$/, '')}/${rawCwd.replace(/^[\\/]+/, '')}`;
 
     const session = {
-      id: `tool-${tool.id}-${Date.now()}`,
+      id: `tool-${tool.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       type: 'tool',
       toolId: tool.id,
       toolName: tool.name,
