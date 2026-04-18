@@ -43,6 +43,10 @@ async function registerSessionTabsIpc(opts) {
     const tab = tracker.list().find(t => t.id === tabId);
     if (!tab) throw new Error(`No tab with id ${tabId}`);
     if (!tab.sessionId) throw new Error(`Tab ${tabId} has no sessionId; cannot resume`);
+    // Guard against double-spawn: autoRestore may be mid-flight for this tab,
+    // or the user may be clicking RESUME on a tab that's already active.
+    if (tracker.isRestoring(tabId)) throw new Error(`tab ${tabId} is already being restored`);
+    if (tab.status === 'active') throw new Error(`tab ${tabId} is already active`);
 
     const { scopeId, pid } = await opts.adapter.spawn({
       cwd: tab.cwd, sessionId: tab.sessionId, resume: true,

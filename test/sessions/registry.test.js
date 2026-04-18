@@ -81,6 +81,35 @@ describe('Registry', () => {
     expect(readFileSync(join(dir, bak), 'utf8')).toBe('{not-json,,');
   });
 
+  it('concurrent save() calls serialize — final file matches last caller\'s state', async () => {
+    const r = new Registry(filePath);
+    await r.load();
+
+    // Three overlapping save() calls: upsert, save (no await), upsert, save (no await), etc.
+    // If saves raced concurrently, the writeFile → rename pairs would interleave
+    // and the final file could be missing tabs (or corrupt).
+    r.upsert({ id: 'A', label: 'A' });
+    const p1 = r.save();
+    r.upsert({ id: 'B', label: 'B' });
+    const p2 = r.save();
+    r.upsert({ id: 'C', label: 'C' });
+    const p3 = r.save();
+
+    await Promise.all([p1, p2, p3]);
+
+    // Final on-disk state must contain all three tabs. Since each save serializes
+    // the then-current full tabs array, once the last save in the chain runs,
+    // the file reflects {A, B, C}. This is the invariant serialization guarantees.
+    const r2 = new Registry(filePath);
+    await r2.load();
+    const ids = r2.list().map(t => t.id).sort();
+    expect(ids).toEqual(['A', 'B', 'C']);
+
+    // And no .tmp stragglers — each rename completed cleanly.
+    const files = readdirSync(dir);
+    expect(files.some(f => f.endsWith('.tmp'))).toBe(false);
+  });
+
   it('load() re-throws on non-ENOENT I/O errors (does not blank the registry)', async () => {
     // Create a directory at the registry filepath so readFile throws EISDIR.
     mkdirSync(filePath, { recursive: true });

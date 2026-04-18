@@ -258,10 +258,81 @@ describe('SessionTracker', () => {
     const after1 = tracker.list()[0];
     expect(after1.restoreFailureCount).toBe(3);
 
-    // Second pass: tab is quarantined (count === max), adapter must NOT be called.
+    // Second autoRestore must SKIP the quarantined tab via the pre-flight filter,
+    // not attempt-and-catch. `toHaveBeenCalledTimes(1)` proves adapter.spawn was
+    // not called again; `r2 === []` proves no failed-attempt entry was recorded
+    // (which would indicate the catch path had run instead).
     const r2 = await tracker.autoRestore();
     expect(adapter.spawn).toHaveBeenCalledTimes(1); // no new calls
     expect(r2).toEqual([]);
+  });
+
+  it('autoRestore marks in-flight tabs via isRestoring, clears them when each iteration completes', async () => {
+    const tabA = makeTab({
+      id: 'A', sessionId: 'sess-A', cwd: 'C:/a', status: 'dormant',
+      lastActivityAt: Date.now(),
+    });
+    const tabB = makeTab({
+      id: 'B', sessionId: 'sess-B', cwd: 'C:/b', status: 'dormant',
+      lastActivityAt: Date.now(),
+    });
+    writeFileSync(registryPath, JSON.stringify({ tabs: [tabA, tabB] }), 'utf8');
+
+    /** @type {Array<{ sessionId: string, inFlight: boolean }>} */
+    const seen = [];
+    let trackerRef;
+    const adapter = {
+      spawn: vi.fn(async ({ sessionId }) => {
+        // Capture isRestoring state for the matching tab at the moment of spawn.
+        const tabId = sessionId === 'sess-A' ? 'A' : 'B';
+        seen.push({ sessionId, inFlight: trackerRef.isRestoring(tabId) });
+        return { scopeId: 'new-' + sessionId, pid: 2000 };
+      }),
+    };
+
+    tracker = new SessionTracker({
+      registryPath,
+      claudeProjectsDir: projectsRoot,
+      adapter,
+      logger: SILENT_LOGGER,
+    });
+    trackerRef = tracker;
+    await tracker.init();
+
+    await tracker.autoRestore();
+
+    // Both adapter.spawn calls saw the in-flight marker.
+    expect(seen.length).toBe(2);
+    expect(seen.every(s => s.inFlight === true)).toBe(true);
+
+    // After autoRestore completes, neither tab is still marked in-flight.
+    expect(tracker.isRestoring('A')).toBe(false);
+    expect(tracker.isRestoring('B')).toBe(false);
+  });
+
+  it('autoRestore clears _restoringTabs even when adapter.spawn rejects', async () => {
+    const tab = makeTab({
+      id: 'X', sessionId: 'sess-X', cwd: 'C:/x', status: 'dormant',
+      lastActivityAt: Date.now(),
+    });
+    writeFileSync(registryPath, JSON.stringify({ tabs: [tab] }), 'utf8');
+
+    const adapter = {
+      spawn: vi.fn(async () => { throw new Error('boom'); }),
+    };
+
+    tracker = new SessionTracker({
+      registryPath,
+      claudeProjectsDir: projectsRoot,
+      adapter,
+      logger: SILENT_LOGGER,
+    });
+    await tracker.init();
+
+    await tracker.autoRestore();
+
+    // Even though spawn rejected, the finally-block must have cleared the set.
+    expect(tracker.isRestoring('X')).toBe(false);
   });
 
   it('closeTab removes from registry and persists', async () => {

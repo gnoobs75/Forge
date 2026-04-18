@@ -10,9 +10,34 @@ const DEFAULT_DORMANT_TTL_MS = 14 * 24 * 3600 * 1000;
 const RESTORE_STAGGER_MS = 250;
 
 /**
+ * SpawnResult — what a SpawnAdapter returns when it successfully starts a PTY.
+ *
  * @typedef {Object} SpawnResult
  * @property {string} scopeId
+ *   Unique identifier for the live PTY, assigned by the adapter. Every live PTY
+ *   must have a distinct scopeId. A resumed tab MAY reuse a previously-seen
+ *   scopeId if the adapter chooses — the tracker stores whatever the adapter
+ *   returns and does not enforce scopeId uniqueness across time.
  * @property {number|null} pid
+ *   OS process id of the spawned `claude` CLI, if the adapter has it. MAY be
+ *   `null` if the adapter doesn't expose pid (e.g. the spawn was queued and not
+ *   yet materialized, or the underlying transport hides pids).
+ *
+ * SpawnAdapter — the contract SessionTracker needs from whatever spawns PTYs.
+ * Typically wraps node-pty or a similar transport; the tracker never spawns
+ * processes itself.
+ *
+ * spawn() contract:
+ *   - MUST return a Promise that resolves to a SpawnResult on success.
+ *   - MUST reject (not resolve with a sentinel) on failure. autoRestore relies
+ *     on rejection to increment restoreFailureCount and eventually quarantine
+ *     a tab that fails maxRestoreFailures times in a row.
+ *   - When `resume: true`, `sessionId` MUST be a non-empty string. The adapter
+ *     is responsible for passing `--resume <sessionId>` to the claude CLI.
+ *   - When `resume: false` (or omitted), `sessionId` MAY be null. The adapter
+ *     spawns a fresh claude session. The tracker does not currently call spawn
+ *     with `resume: false` from any internal code path — this mode exists for
+ *     future callers (e.g. a "new tab" IPC) that want to reuse the adapter.
  *
  * @typedef {Object} SpawnAdapter
  * @property {(opts: { cwd: string, sessionId?: string|null, resume?: boolean }) => Promise<SpawnResult>} spawn
@@ -49,6 +74,9 @@ class SessionTracker extends EventEmitter {
 
     /** @type {Map<string, number>} scopeId -> spawnAt */
     this.pendingSpawns = new Map();
+
+    /** @type {Set<string>} tabIds currently being spawned by autoRestore (in-flight guard) */
+    this._restoringTabs = new Set();
 
     this._onSessionFile = (event) => this._handleSessionFile(event);
   }
@@ -106,6 +134,7 @@ class SessionTracker extends EventEmitter {
         await new Promise(r => setTimeout(r, RESTORE_STAGGER_MS));
       }
       const tab = candidates[i];
+      this._restoringTabs.add(tab.id);
       try {
         const { scopeId, pid } = await this.adapter.spawn({
           cwd: tab.cwd,
@@ -133,6 +162,8 @@ class SessionTracker extends EventEmitter {
         this.emit('change');
         this.logger.warn?.(`[SessionTracker] restore failed for ${tab.id}: ${msg}`);
         results.push({ tabId: tab.id, ok: false, error: msg });
+      } finally {
+        this._restoringTabs.delete(tab.id);
       }
     }
 
@@ -241,6 +272,14 @@ class SessionTracker extends EventEmitter {
   }
 
   list() { return this.registry.list(); }
+
+  /**
+   * Returns true while an autoRestore iteration is currently calling adapter.spawn
+   * for this tabId. Used by the RESUME IPC handler to reject duplicate spawn
+   * attempts during startup restore.
+   * @param {string} tabId
+   */
+  isRestoring(tabId) { return this._restoringTabs.has(tabId); }
 
   async shutdown() {
     try { await this.watcher.stop(); } catch {}

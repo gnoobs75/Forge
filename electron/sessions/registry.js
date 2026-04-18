@@ -43,7 +43,19 @@ class Registry {
   }
 
   // Atomic write: write to .tmp, then rename.
+  // Overlapping save() calls serialize via a promise chain: two writeFile→rename
+  // pairs never run concurrently against the same .tmp path. A failed save does
+  // NOT poison subsequent saves — the per-link catch keeps the chain alive while
+  // the current caller still sees the error via the returned promise.
   async save() {
+    const doSave = () => this._saveNow();
+    this._saveChain = (this._saveChain || Promise.resolve())
+      .catch(() => {})
+      .then(doSave);
+    return this._saveChain;
+  }
+
+  async _saveNow() {
     await mkdir(dirname(this.filePath), { recursive: true });
     const tmp = this.filePath + '.tmp';
     const payload = JSON.stringify({ tabs: this.tabs }, null, 2);
