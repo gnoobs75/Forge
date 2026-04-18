@@ -400,6 +400,76 @@ ipcMain.on('terminal:create-implementation', (event, { scopeId, cols, rows, cwd,
   }
 });
 
+// IPC handler for Project Tools launchers — plain shell + auto-typed command
+ipcMain.on('terminal:create-tool', (event, { scopeId, cols, rows, cwd, command, env }) => {
+  console.log(`[Forge] terminal:create-tool scope="${scopeId}" cwd=${cwd} cmd=${command}`);
+
+  if (!cwd || !fs.existsSync(cwd)) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:data', { scopeId,
+        data: `\r\n\x1b[31m[Forge] tool launch failed: cwd not found (${cwd})\x1b[0m\r\n` });
+      mainWindow.webContents.send('terminal:exit', { scopeId, exitCode: 1 });
+    }
+    return;
+  }
+  if (!command || typeof command !== 'string') {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:data', { scopeId,
+        data: `\r\n\x1b[31m[Forge] tool launch failed: no command\x1b[0m\r\n` });
+      mainWindow.webContents.send('terminal:exit', { scopeId, exitCode: 1 });
+    }
+    return;
+  }
+
+  let shell, shellArgs;
+  if (process.platform === 'win32') {
+    shell = process.env.COMSPEC || 'cmd.exe';
+    shellArgs = [];
+  } else {
+    shell = process.env.SHELL || 'bash';
+    shellArgs = [];
+  }
+
+  const toolEnv = { ...ptyEnv(), ...(env && typeof env === 'object' ? env : {}) };
+
+  try {
+    const proc = pty.spawn(shell, shellArgs, {
+      name: 'xterm-256color',
+      cols: cols || 80,
+      rows: rows || 24,
+      cwd,
+      env: toolEnv,
+    });
+    console.log(`[Forge] Tool PTY spawned scope="${scopeId}", pid=${proc.pid}, cwd=${cwd}`);
+    ptyProcesses.set(scopeId, proc);
+
+    proc.onData((data) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('terminal:data', { scopeId, data });
+      }
+    });
+
+    proc.onExit(({ exitCode }) => {
+      console.log(`[Forge] Tool PTY scope="${scopeId}" exited code=${exitCode}`);
+      ptyProcesses.delete(scopeId);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('terminal:exit', { scopeId, exitCode });
+      }
+    });
+
+    setTimeout(() => {
+      try { proc.write(command + '\r'); } catch (e) { /* ignore */ }
+    }, 500);
+  } catch (err) {
+    console.error(`[Forge] Tool PTY spawn FAILED for scope="${scopeId}":`, err);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:data', { scopeId,
+        data: `\r\n\x1b[31m[Forge] spawn failed: ${err.message}\x1b[0m\r\n` });
+      mainWindow.webContents.send('terminal:exit', { scopeId, exitCode: 1 });
+    }
+  }
+});
+
 // IPC handlers for terminal — all scope-aware
 ipcMain.on('terminal:create', (event, { scopeId, cols, rows, repoPath }) => {
   console.log(`[Forge] terminal:create scope="${scopeId}" cols=${cols} rows=${rows} repoPath=${repoPath || '(none)'} existing=${ptyProcesses.has(scopeId)}`);

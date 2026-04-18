@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('forgePaths', {
   hqData: PATHS.hqData,
   agentsDir: PATHS.agentsDir,
   claudeMd: PATHS.claudeMd,
+  platform: process.platform,
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -20,6 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.send('terminal:create-implementation', { scopeId, cols, rows, cwd, prompt, flags, mode, modelFlag, agentSlug, projectSlug }),
     createAgentSession: (scopeId, cols, rows, agentSlug, projectSlug, modelFlag) =>
       ipcRenderer.send('terminal:create-agent-session', { scopeId, cols, rows, agentSlug, projectSlug, modelFlag }),
+    createTool: (scopeId, cols, rows, cwd, command, env) =>
+      ipcRenderer.send('terminal:create-tool', { scopeId, cols, rows, cwd, command, env }),
     kill: (scopeId) => ipcRenderer.send('terminal:kill', { scopeId }),
     onData: (callback) => {
       const handler = (event, { scopeId, data }) => callback(scopeId, data);
