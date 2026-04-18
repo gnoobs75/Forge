@@ -159,7 +159,7 @@ describe('SessionTracker', () => {
     expect(list[0].label).toBe('hello');
   });
 
-  it('markDormant flips pid → null, status → dormant, clears scopeId', async () => {
+  it('markDormant flips a bound tab to dormant: pid → null, status → dormant, scopeId cleared, tab retained', async () => {
     tracker = new SessionTracker({
       registryPath,
       claudeProjectsDir: projectsRoot,
@@ -168,11 +168,45 @@ describe('SessionTracker', () => {
     });
     await tracker.init();
 
-    tracker.recordPendingSpawn({ cwd: 'C:/foo', scopeId: 's2', pid: 555 });
+    // Record a pending spawn then manually bind it with a sessionId so it is
+    // resumable. markDormant should keep it in the registry as dormant.
+    const tab = tracker.recordPendingSpawn({ cwd: 'C:/foo', scopeId: 's2', pid: 555 });
+    tracker.registry.upsert({ ...tab, sessionId: 'sess-bound' });
     tracker.markDormant('s2');
 
     const list = tracker.list();
     expect(list.length).toBe(1);
+    expect(list[0].sessionId).toBe('sess-bound');
+    expect(list[0].pid).toBeNull();
+    expect(list[0].status).toBe('dormant');
+    expect(list[0].scopeId).toBeNull();
+  });
+
+  it('markDormant removes unbound tabs (sessionId === null) instead of flipping to dormant', async () => {
+    tracker = new SessionTracker({
+      registryPath,
+      claudeProjectsDir: projectsRoot,
+      adapter: neverCalledAdapter(),
+      logger: SILENT_LOGGER,
+    });
+    await tracker.init();
+
+    // Unbound tab: recordPendingSpawn creates a tab with sessionId=null.
+    // markDormant should drop it since it is not resumable.
+    tracker.recordPendingSpawn({ cwd: 'C:/foo', scopeId: 's-unbound', pid: 111 });
+    expect(tracker.list().length).toBe(1);
+    tracker.markDormant('s-unbound');
+    expect(tracker.list()).toEqual([]);
+
+    // Bound tab: manually upsert with a sessionId. markDormant should flip it
+    // to dormant (pid=null, scopeId=null) and keep it in the registry.
+    const bound = tracker.recordPendingSpawn({ cwd: 'C:/bar', scopeId: 's-bound', pid: 222 });
+    tracker.registry.upsert({ ...bound, sessionId: 'sess-bound' });
+    tracker.markDormant('s-bound');
+
+    const list = tracker.list();
+    expect(list.length).toBe(1);
+    expect(list[0].sessionId).toBe('sess-bound');
     expect(list[0].pid).toBeNull();
     expect(list[0].status).toBe('dormant');
     expect(list[0].scopeId).toBeNull();

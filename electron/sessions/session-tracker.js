@@ -253,8 +253,12 @@ class SessionTracker extends EventEmitter {
       this.logger.log?.(`[SessionTracker] markDormant: no tab for scopeId ${scopeId}`);
       return;
     }
-    const updated = { ...tab, status: 'dormant', pid: null, scopeId: null };
-    this.registry.upsert(updated);
+    // Unbound tabs (no sessionId ever discovered) are not resumable — drop them.
+    if (!tab.sessionId) {
+      this.registry.remove(tab.id);
+    } else {
+      this.registry.upsert({ ...tab, pid: null, status: 'dormant', scopeId: null });
+    }
     this.pendingSpawns.delete(scopeId);
     this.registry.save().catch(err => {
       this.logger.error?.('[SessionTracker] save in markDormant failed:', err);

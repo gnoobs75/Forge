@@ -283,6 +283,13 @@ function createTerminal(scopeId, cols, rows, repoPath) {
     console.log(`[Forge] PTY spawned for scope="${scopeId}", pid=${proc.pid}`);
 
     ptyProcesses.set(scopeId, proc);
+    if (global.__sessionTracker) {
+      try {
+        global.__sessionTracker.recordPendingSpawn({ cwd: cwd || repoPath || process.cwd(), scopeId, pid: proc.pid });
+      } catch (err) {
+        console.warn('[sessions] recordPendingSpawn failed:', err);
+      }
+    }
 
     proc.onData((data) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -298,6 +305,9 @@ function createTerminal(scopeId, cols, rows, repoPath) {
     proc.onExit(({ exitCode }) => {
       console.log(`[Forge] PTY for scope="${scopeId}" exited with code ${exitCode}`);
       ptyProcesses.delete(scopeId);
+      if (global.__sessionTracker) {
+        try { global.__sessionTracker.markDormant(scopeId); } catch {}
+      }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('terminal:exit', { scopeId, exitCode });
       }
@@ -452,6 +462,13 @@ ipcMain.on('terminal:create-tool', (event, { scopeId, cols, rows, cwd, command, 
     });
     console.log(`[Forge] Tool PTY spawned scope="${scopeId}", pid=${proc.pid}, cwd=${cwd}`);
     ptyProcesses.set(scopeId, proc);
+    if (global.__sessionTracker) {
+      try {
+        global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid });
+      } catch (err) {
+        console.warn('[sessions] recordPendingSpawn failed:', err);
+      }
+    }
 
     proc.onData((data) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -462,6 +479,9 @@ ipcMain.on('terminal:create-tool', (event, { scopeId, cols, rows, cwd, command, 
     proc.onExit(({ exitCode }) => {
       console.log(`[Forge] Tool PTY scope="${scopeId}" exited code=${exitCode}`);
       ptyProcesses.delete(scopeId);
+      if (global.__sessionTracker) {
+        try { global.__sessionTracker.markDormant(scopeId); } catch {}
+      }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('terminal:exit', { scopeId, exitCode });
       }
@@ -2737,6 +2757,7 @@ app.whenReady().then(async () => {
       adapter,
       logger: console,
     });
+    console.log(`[sessions] tracker initialized; loaded ${tracker.list().length} persisted tab(s)`);
     global.__sessionTracker = tracker;
 
     // Wait for the main window to finish loading so the renderer is alive
