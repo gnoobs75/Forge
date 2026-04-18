@@ -51,8 +51,13 @@ async function registerSessionTabsIpc(opts) {
     const { scopeId, pid } = await opts.adapter.spawn({
       cwd: tab.cwd, sessionId: tab.sessionId, resume: true,
     });
-    tracker.recordPendingSpawn({ cwd: tab.cwd, scopeId, pid });
-    return tracker.list().find(t => t.scopeId === scopeId);
+    // Drop the old dormant record first so recordPendingSpawn creates a fresh
+    // active tab keyed by the new scopeId. The watcher will rebind label +
+    // sessionId as soon as the resumed `claude --resume <id>` writes its
+    // first entry to the same jsonl file.
+    await tracker.closeTab(tab.id);
+    const newTab = tracker.recordPendingSpawn({ cwd: tab.cwd, scopeId, pid });
+    return newTab;
   });
 
   ipcMain.handle(CHANNELS.REMOVE, (_e, tabId) => tracker.closeTab(tabId));

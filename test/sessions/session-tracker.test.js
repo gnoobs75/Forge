@@ -354,4 +354,31 @@ describe('SessionTracker', () => {
     await r2.load();
     expect(r2.list()).toEqual([]);
   });
+
+  it('closeByScopeId removes the tab matching the scopeId; is a no-op for unknown scopeId', async () => {
+    tracker = new SessionTracker({
+      registryPath,
+      claudeProjectsDir: projectsRoot,
+      adapter: neverCalledAdapter(),
+      logger: SILENT_LOGGER,
+    });
+    await tracker.init();
+
+    const t = tracker.recordPendingSpawn({ cwd: 'C:/foo', scopeId: 's-match', pid: 321 });
+    expect(tracker.list().length).toBe(1);
+
+    // Unknown scopeId should be a no-op.
+    await tracker.closeByScopeId('no-such-scope');
+    expect(tracker.list().length).toBe(1);
+    expect(tracker.list()[0].id).toBe(t.id);
+
+    // Matching scopeId removes the tab.
+    await tracker.closeByScopeId('s-match');
+    expect(tracker.list()).toEqual([]);
+
+    // Persisted to disk.
+    const r2 = new Registry(registryPath);
+    await r2.load();
+    expect(r2.list()).toEqual([]);
+  });
 });

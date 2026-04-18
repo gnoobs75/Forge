@@ -211,6 +211,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     pickLauncher: (repoPath)         => ipcRenderer.invoke('project:pick-launcher', repoPath),
   },
 
+  // Session tabs (Claude CLI session resume)
+  sessionTabs: {
+    list: () => ipcRenderer.invoke('sessionTabs:list'),
+    resume: (tabId) => ipcRenderer.invoke('sessionTabs:resume', tabId),
+    remove: (tabId) => ipcRenderer.invoke('sessionTabs:remove', tabId),
+    onUpdate: (cb) => {
+      const h = (_e, payload) => cb(payload);
+      ipcRenderer.on('sessionTabs:update', h);
+      return () => ipcRenderer.removeListener('sessionTabs:update', h);
+    },
+  },
+
   // HQ Data
   hq: {
     readFile: (path) => ipcRenderer.invoke('hq:read-file', path),

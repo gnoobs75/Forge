@@ -350,6 +350,9 @@ ipcMain.on('terminal:create-implementation', (event, { scopeId, cols, rows, cwd,
     proc.onExit(({ exitCode }) => {
       console.log(`[Forge] Implementation PTY scope="${scopeId}" exited with code ${exitCode}`);
       ptyProcesses.delete(scopeId);
+      if (global.__sessionTracker) {
+        try { global.__sessionTracker.markDormant(scopeId); } catch {}
+      }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('terminal:exit', { scopeId, exitCode });
       }
@@ -393,6 +396,13 @@ ipcMain.on('terminal:create-implementation', (event, { scopeId, cols, rows, cwd,
       // Both modes get danger mode for uninterrupted reading. The instruction itself controls whether code is written.
       const cmd = ['claude', '--dangerously-skip-permissions', modelArg, flags, `"${instruction}"`].filter(Boolean).join(' ');
       console.log(`[Forge] *** Implementation PTY FULL command (mode=${mode}): ${cmd}`);
+      if (global.__sessionTracker) {
+        try {
+          global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid });
+        } catch (err) {
+          console.warn('[sessions] recordPendingSpawn failed:', err);
+        }
+      }
       proc.write(cmd + '\r');
     }, 500);
   } catch (err) {
@@ -497,6 +507,11 @@ ipcMain.on('terminal:kill', (event, { scopeId }) => {
     console.log(`[Forge] Killing PTY for scope="${scopeId}", pid=${proc.pid}`);
     try { proc.kill(); } catch (e) {}
     ptyProcesses.delete(scopeId);
+  }
+  if (global.__sessionTracker) {
+    global.__sessionTracker.closeByScopeId(scopeId).catch(err =>
+      console.warn('[sessions] closeByScopeId failed:', err)
+    );
   }
 });
 
@@ -2110,6 +2125,9 @@ function executeFridayCommand(commandId, command, args) {
       proc.onExit(({ exitCode }) => {
         console.log(`[Forge Friday] Agent PTY exited: ${scopeId} code=${exitCode}`);
         ptyProcesses.delete(scopeId);
+        if (global.__sessionTracker) {
+          try { global.__sessionTracker.markDormant(scopeId); } catch {}
+        }
         mainWindow.webContents.send('terminal:exit', { scopeId, exitCode });
         mainWindow.webContents.send('friday:task-update', {
           commandId,
@@ -2143,6 +2161,13 @@ function executeFridayCommand(commandId, command, args) {
         const dangerFlag = dangerMode ? '--dangerously-skip-permissions ' : '';
         const cmd = `claude ${dangerFlag}"Read the agent brief at ${briefPath}. Follow its instructions completely."`;
         console.log(`[Forge Friday] Agent PTY command (danger=${dangerMode}): ${cmd.slice(0, 200)}...`);
+        if (global.__sessionTracker) {
+          try {
+            global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid });
+          } catch (err) {
+            console.warn('[sessions] recordPendingSpawn failed:', err);
+          }
+        }
         proc.write(cmd + '\r\n');
       }, 1000);
 
@@ -2192,6 +2217,9 @@ function executeFridayCommand(commandId, command, args) {
           fridayWs.send(JSON.stringify({ type: 'mobile:terminal:exit', scopeId, exitCode }));
         }
         ptyProcesses.delete(scopeId);
+        if (global.__sessionTracker) {
+          try { global.__sessionTracker.markDormant(scopeId); } catch {}
+        }
       });
 
       // Write brief to temp file and auto-type the claude command
@@ -2204,6 +2232,13 @@ function executeFridayCommand(commandId, command, args) {
           : `Read the implementation brief at ${briefPath} and implement the recommended approach. Explore the codebase first.`;
         const modelArg = modelFlag ? `--model ${modelFlag}` : '';
         const cmd = ['claude', '--dangerously-skip-permissions', modelArg, `"${instruction}"`].filter(Boolean).join(' ');
+        if (global.__sessionTracker) {
+          try {
+            global.__sessionTracker.recordPendingSpawn({ cwd: cwd || PATHS.forgeRoot, scopeId, pid: proc.pid });
+          } catch (err) {
+            console.warn('[sessions] recordPendingSpawn failed:', err);
+          }
+        }
         proc.write(cmd + '\r');
       }, 500);
 
@@ -2381,6 +2416,9 @@ ipcMain.on('terminal:create-agent-session', (event, { scopeId, cols, rows, agent
     proc.onExit(({ exitCode }) => {
       console.log(`[Forge] Agent session PTY scope="${scopeId}" exited with code ${exitCode}`);
       ptyProcesses.delete(scopeId);
+      if (global.__sessionTracker) {
+        try { global.__sessionTracker.markDormant(scopeId); } catch {}
+      }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('terminal:exit', { scopeId, exitCode });
       }
@@ -2414,6 +2452,13 @@ ipcMain.on('terminal:create-agent-session', (event, { scopeId, cols, rows, agent
       const modelArg = modelFlag ? `--model ${modelFlag}` : '';
       const cmd = ['claude', modelArg, `"${instruction}"`].filter(Boolean).join(' ');
       console.log(`[Forge] Agent session command: ${cmd.slice(0, 180)}...`);
+      if (global.__sessionTracker) {
+        try {
+          global.__sessionTracker.recordPendingSpawn({ cwd: agentRepoPath, scopeId, pid: proc.pid });
+        } catch (err) {
+          console.warn('[sessions] recordPendingSpawn failed:', err);
+        }
+      }
       proc.write(cmd + '\r');
     }, 500);
   } catch (err) {
@@ -2636,6 +2681,42 @@ ipcMain.on('hq:start-watching', () => {
   });
 });
 
+// ─── Session Tabs: PTY helper + bootstrap ──────────────────────────────────
+// Minimal PTY spawn helper used by the SpawnAdapter. Mirrors the basic
+// node-pty + IPC wiring used by terminal:create-implementation but WITHOUT
+// impl-session-specific logic (metering, brief files, agent metadata). The
+// adapter calls this for autoRestore() and for the sessionTabs:resume IPC.
+async function spawnSessionPty(scopeId, cwd, cols, rows) {
+  const shell = process.platform === 'win32'
+    ? (process.env.COMSPEC || 'cmd.exe')
+    : (process.env.SHELL || 'bash');
+  const proc = pty.spawn(shell, [], {
+    name: 'xterm-256color',
+    cols: cols || 120,
+    rows: rows || 30,
+    cwd,
+    env: ptyEnv(),
+  });
+  console.log(`[Forge] Session PTY spawned scope="${scopeId}", pid=${proc.pid}, cwd=${cwd}`);
+
+  proc.onData((data) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      try { win.webContents.send('terminal:data', { scopeId, data }); } catch {}
+    }
+  });
+  proc.onExit(({ exitCode, signal }) => {
+    console.log(`[Forge] Session PTY scope="${scopeId}" exited with code ${exitCode}`);
+    for (const win of BrowserWindow.getAllWindows()) {
+      try { win.webContents.send('terminal:exit', { scopeId, exitCode, signal }); } catch {}
+    }
+    ptyProcesses.delete(scopeId);
+    if (global.__sessionTracker) {
+      try { global.__sessionTracker.markDormant(scopeId); } catch {}
+    }
+  });
+  return proc;
+}
+
 app.whenReady().then(async () => {
   await startViteServer();
   createWindow();
@@ -2644,6 +2725,36 @@ app.whenReady().then(async () => {
   startSocialNotifTimer();
   startCampaignTimer();
   startPortMonitor();
+
+  // ─── Session Tabs bootstrap: adapter + tracker + auto-restore ──────────
+  try {
+    const { registerSessionTabsIpc } = require('./sessions/ipc');
+    const { createSpawnAdapter } = require('./sessions/spawn-adapter');
+    const adapter = createSpawnAdapter({ ptyProcesses, spawnPty: spawnSessionPty });
+    const { tracker } = await registerSessionTabsIpc({
+      userDataDir: app.getPath('userData'),
+      claudeProjectsDir: path.join(os.homedir(), '.claude', 'projects'),
+      adapter,
+      logger: console,
+    });
+    global.__sessionTracker = tracker;
+
+    // Wait for the main window to finish loading so the renderer is alive
+    // to receive sessionTabs:update broadcasts from auto-restore.
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.once('did-finish-load', async () => {
+        try {
+          const results = await tracker.autoRestore();
+          const ok = results.filter(r => r.ok).length;
+          console.log(`[sessions] autoRestore: ${ok}/${results.length} ok`);
+        } catch (err) {
+          console.error('[sessions] autoRestore failed:', err);
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[sessions] bootstrap failed:', err);
+  }
 
   // Auto-start Friday server
   try {
@@ -2677,6 +2788,12 @@ app.whenReady().then(async () => {
     }
   } catch (err) {
     console.warn('[Forge Discord] Auto-reconnect check failed:', err.message);
+  }
+});
+
+app.on('before-quit', async () => {
+  if (global.__sessionTracker) {
+    try { await global.__sessionTracker.shutdown(); } catch {}
   }
 });
 

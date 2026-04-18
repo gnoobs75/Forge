@@ -271,6 +271,18 @@ class SessionTracker extends EventEmitter {
     this.emit('change');
   }
 
+  /**
+   * Remove the tab that currently owns the given scopeId, if any.
+   * No-op when the scopeId is unknown — e.g. a tool terminal the tracker
+   * never recorded, or a scope that was already marked dormant.
+   * @param {string} scopeId
+   */
+  async closeByScopeId(scopeId) {
+    const tab = this.registry.list().find(t => t.scopeId === scopeId);
+    if (tab) return this.closeTab(tab.id);
+    // no-op when scope is unknown (e.g. a tool terminal we didn't track)
+  }
+
   list() { return this.registry.list(); }
 
   /**
