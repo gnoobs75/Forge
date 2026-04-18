@@ -19,27 +19,40 @@ class SessionWatcher extends EventEmitter {
   }
 
   async start() {
-    this.watcher = chokidar.watch(this.rootDir, {
-      depth: 2,
-      ignoreInitial: false,
-      awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
-    });
+    if (this.watcher) throw new Error('SessionWatcher already started');
 
-    const handle = (path) => {
-      if (extname(path) !== '.jsonl') return;
-      const projectDirName = basename(dirname(path));
-      let mtimeMs = Date.now();
-      try { mtimeMs = statSync(path).mtimeMs; } catch { return; }
-      this.emit('sessionFile', {
-        cwd: unescapeCwd(projectDirName),
-        sessionId: basename(path, '.jsonl'),
-        path,
-        mtimeMs,
+    try {
+      this.watcher = chokidar.watch(this.rootDir, {
+        depth: 2,
+        ignoreInitial: false,
+        awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
       });
-    };
 
-    this.watcher.on('add', handle).on('change', handle);
-    await new Promise((r) => this.watcher.on('ready', r));
+      const handle = (path) => {
+        if (extname(path) !== '.jsonl') return;
+        const projectDirName = basename(dirname(path));
+        let mtimeMs = Date.now();
+        try { mtimeMs = statSync(path).mtimeMs; } catch { return; }
+        this.emit('sessionFile', {
+          cwd: unescapeCwd(projectDirName),
+          sessionId: basename(path, '.jsonl'),
+          path,
+          mtimeMs,
+        });
+      };
+
+      this.watcher.on('add', handle).on('change', handle);
+      await new Promise((resolve, reject) => {
+        this.watcher.once('ready', resolve);
+        this.watcher.once('error', reject);
+      });
+    } catch (err) {
+      if (this.watcher) {
+        try { await this.watcher.close(); } catch {}
+      }
+      this.watcher = null;
+      throw err;
+    }
   }
 
   async stop() {

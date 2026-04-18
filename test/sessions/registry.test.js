@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, readdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -59,7 +59,7 @@ describe('Registry', () => {
     expect(r.list().map(t => t.id)).toEqual(['b']);
   });
 
-  it('atomic write: after save, no lingering .tmp file', async () => {
+  it('cleanup: no .tmp remains after save()', async () => {
     const r = new Registry(filePath);
     await r.load();
     r.upsert({ id: 'x', label: 'X' });
@@ -79,5 +79,18 @@ describe('Registry', () => {
     expect(bak).toBeTruthy();
     // Backup still contains the original corrupt content.
     expect(readFileSync(join(dir, bak), 'utf8')).toBe('{not-json,,');
+  });
+
+  it('load() re-throws on non-ENOENT I/O errors (does not blank the registry)', async () => {
+    // Create a directory at the registry filepath so readFile throws EISDIR.
+    mkdirSync(filePath, { recursive: true });
+
+    const r = new Registry(filePath);
+    // Seed a pre-existing in-memory tab so we can confirm it is NOT blanked.
+    r.upsert({ id: 'preexisting', label: 'keep-me' });
+
+    await expect(r.load()).rejects.toThrow();
+    // Tabs must remain as they were — an I/O error must never wipe state.
+    expect(r.list().map(t => t.id)).toEqual(['preexisting']);
   });
 });

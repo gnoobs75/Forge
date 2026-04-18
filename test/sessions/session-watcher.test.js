@@ -56,4 +56,10 @@ describe('SessionWatcher', () => {
     expect(match.path).toBe(jsonlPath);
     expect(typeof match.mtimeMs).toBe('number');
   });
+
+  it('start() throws when called twice on the same instance', async () => {
+    watcher = new SessionWatcher(root);
+    await watcher.start();
+    await expect(watcher.start()).rejects.toThrow(/already started/);
+  });
 });
