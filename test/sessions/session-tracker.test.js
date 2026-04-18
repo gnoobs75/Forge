@@ -485,6 +485,48 @@ describe('SessionTracker', () => {
     expect(after.label).toBe('solutions-architect @ homestead');
   });
 
+  it('handleSessionFile does not bind a second tab to a sessionId already claimed by another tab', async () => {
+    const warnings = [];
+    const logger = {
+      log() {},
+      warn: (...args) => warnings.push(args.join(' ')),
+      error() {},
+    };
+
+    tracker = new SessionTracker({
+      registryPath,
+      claudeProjectsDir: projectsRoot,
+      adapter: neverCalledAdapter(),
+      logger,
+    });
+    await tracker.init();
+
+    const cwd = 'C:/proj/dup';
+    // Pre-seed two unbound tabs at the same cwd with distinct scopeIds.
+    const t1 = tracker.recordPendingSpawn({ cwd, scopeId: 'dup-scope-1', pid: 11 });
+    const t2 = tracker.recordPendingSpawn({ cwd, scopeId: 'dup-scope-2', pid: 22 });
+
+    const jsonlPath = join(projectsRoot, 'C--proj-dup', 'sess-dup.jsonl');
+    mkdirSync(join(projectsRoot, 'C--proj-dup'), { recursive: true });
+    writeFileSync(jsonlPath, JSON.stringify({ role: 'user', content: 'hello' }) + '\n', 'utf8');
+
+    const mtime = Date.now() + 1000;
+
+    // First event binds t1 to sess-dup.
+    await tracker._handleSessionFile({ cwd, sessionId: 'sess-dup', path: jsonlPath, mtimeMs: mtime });
+
+    // Second event for the SAME sessionId must NOT rebind t2 — it should skip
+    // and warn because sess-dup is already claimed.
+    await tracker._handleSessionFile({ cwd, sessionId: 'sess-dup', path: jsonlPath, mtimeMs: mtime });
+
+    const list = tracker.list();
+    const byId = Object.fromEntries(list.map(t => [t.id, t]));
+    const bound = list.filter(t => t.sessionId === 'sess-dup');
+    expect(bound.length).toBe(1);
+    expect(byId[t2.id].sessionId).toBeNull();
+    expect(warnings.some(w => w.includes('already bound'))).toBe(true);
+  });
+
   it('closeByScopeId removes the tab matching the scopeId; is a no-op for unknown scopeId', async () => {
     tracker = new SessionTracker({
       registryPath,

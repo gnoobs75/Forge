@@ -244,6 +244,17 @@ class SessionTracker extends EventEmitter {
       if (spawnAt === undefined) continue;
       if (spawnAt > mtimeMs) continue;
 
+      // Guard: if another tab already claims this sessionId, skip binding.
+      // Claude CLI sometimes writes a second PTY's jsonl under an earlier one's
+      // UUID; binding twice would cause both tabs to race for the same session
+      // on resume.
+      const claimed = this.registry.list().find(t => t.sessionId === sessionId);
+      if (claimed) {
+        this.logger.warn?.(`[sessions] jsonl ${sessionId} already bound to tab ${claimed.id}; skipping rebind of ${tab.id}`);
+        if (tab.scopeId) this.pendingSpawns.delete(tab.scopeId);
+        return;
+      }
+
       // Synthesize a nicer label from agent/project when we captured them at
       // spawn time; fall back to the jsonl topic scan only if neither is set.
       const synthesized = this._synthesizeLabel(tab);
