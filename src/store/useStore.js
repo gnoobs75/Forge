@@ -90,6 +90,11 @@ export const useStore = create((set, get) => ({
   showNewProjectModal: false,
   implementationSessions: [],
 
+  // Persistent Claude CLI sessions (tracked by main-process SessionTracker).
+  // Populated on startup via window.electronAPI.sessionTabs.list() + onUpdate.
+  claudeSessions: [],   // TabRecord[]
+  setClaudeSessions: (tabs) => set({ claudeSessions: tabs }),
+
   // Automation
   automationSchedules: loadPersistedData('forge-schedules', []),
   agentChains: loadPersistedData('forge-chains', []),

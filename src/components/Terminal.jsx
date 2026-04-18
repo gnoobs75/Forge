@@ -104,6 +104,7 @@ export default function Terminal({ scope }) {
   const [forceRender, setForceRender] = useState(0); // Trigger re-render when dynamic tabs are added
 
   const implementationSessions = useStore(s => s.implementationSessions);
+  const claudeSessions = useStore(s => s.claudeSessions);
 
   // Create a new xterm instance for a scope or implementation session
   const createTerminalInstance = useCallback(async (id) => {
@@ -273,7 +274,7 @@ export default function Terminal({ scope }) {
 
   // Check if an ID belongs to a session (not a scope terminal or system terminal)
   const isSessionId = useCallback((id) => {
-    return id && (id.startsWith('impl-') || id.startsWith('agent-') || id.startsWith('auto-') || id.startsWith('tool-'));
+    return id && (id.startsWith('impl-') || id.startsWith('agent-') || id.startsWith('auto-') || id.startsWith('tool-') || id.startsWith('session-'));
   }, []);
 
   // System-managed terminal IDs that should NOT be killed on cleanup
@@ -389,6 +390,34 @@ export default function Terminal({ scope }) {
     return entry;
   }, [createTerminalInstance]);
 
+  // Mount an xterm UI for a persistent Claude CLI session (PTY is already spawned
+  // by the main-process SessionTracker on startup; this only wires the renderer).
+  const spawnClaudeSessionTerminal = useCallback(async (tab) => {
+    if (spawnedSessionsRef.current.has(tab.scopeId)) return;
+    spawnedSessionsRef.current.add(tab.scopeId);
+
+    const entry = await createTerminalInstance(tab.scopeId);
+    const { term } = entry;
+
+    if (window.electronAPI?.terminal) {
+      term.onData((data) => {
+        window.electronAPI.terminal.input(tab.scopeId, data);
+      });
+      term.onResize(({ cols, rows }) => {
+        window.electronAPI.terminal.resize(tab.scopeId, cols, rows);
+      });
+    } else {
+      // Dev-mode: no PTY — show a simple banner
+      term.writeln('');
+      term.writeln(`  \x1b[1;35m\u2728 Claude Session\x1b[0m`);
+      term.writeln(`  \x1b[1;37mLabel:\x1b[0m ${tab.label || '(untitled)'}`);
+      term.writeln(`  \x1b[1;37mCwd:\x1b[0m \x1b[90m${tab.cwd}\x1b[0m`);
+      term.writeln('');
+    }
+
+    return entry;
+  }, [createTerminalInstance]);
+
   // Tab switching
   const handleTabSelect = useCallback((tabId) => {
     setActiveTabId(tabId);
@@ -412,6 +441,20 @@ export default function Terminal({ scope }) {
   // Tab closing — kills the PTY if still running
   const handleTabClose = useCallback((sessionId) => {
     const store = useStore.getState();
+
+    // Persistent Claude CLI session tab (scopeId has `session-` prefix):
+    // kill the PTY — main's terminal:kill handler calls closeByScopeId which
+    // removes the registry entry; the sessionTabs:update broadcast then drops
+    // the tab from the store, and our claudeSessions effect disposes the xterm.
+    // Dormant tabs are handled inside ClaudeSessionTab via sessionTabs.remove.
+    if (sessionId && sessionId.startsWith('session-')) {
+      if (window.electronAPI?.terminal?.kill) {
+        window.electronAPI.terminal.kill(sessionId);
+      }
+      handleTabSelect(scope?.id);
+      return;
+    }
+
     const session = store.implementationSessions.find(s => s.id === sessionId);
 
     // Kill the PTY process if still running
@@ -575,6 +618,35 @@ export default function Terminal({ scope }) {
       }
     }
   }, [implementationSessions, spawnImplementationTerminal]);
+
+  // Mount xterm instances for persistent Claude CLI sessions.
+  // Only active tabs have a live PTY; dormant tabs get a UI but no streaming input.
+  // Also dispose xterm UIs when a tab disappears from the registry.
+  useEffect(() => {
+    const liveScopeIds = new Set(claudeSessions.map(t => t.scopeId).filter(Boolean));
+
+    for (const tab of claudeSessions) {
+      if (!tab.scopeId) continue;
+      if (tab.status === 'active' && !spawnedSessionsRef.current.has(tab.scopeId)) {
+        spawnClaudeSessionTerminal(tab);
+      }
+    }
+
+    // Dispose xterm instances for claude session scopeIds that were removed
+    for (const id of Array.from(terminalsRef.current.keys())) {
+      if (!id.startsWith('session-')) continue;
+      if (liveScopeIds.has(id)) continue;
+      const entry = terminalsRef.current.get(id);
+      try { entry.term.dispose(); } catch (e) {}
+      try { entry.containerEl.remove(); } catch (e) {}
+      terminalsRef.current.delete(id);
+      spawnedSessionsRef.current.delete(id);
+      if (activeTabRef.current === id) {
+        activeTabRef.current = null;
+        setActiveTabId(null);
+      }
+    }
+  }, [claudeSessions, spawnClaudeSessionTerminal]);
 
   // Auto-create system terminals (SRV group: friday-server + forge-logs)
   useEffect(() => {

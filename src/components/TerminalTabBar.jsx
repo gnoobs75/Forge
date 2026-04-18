@@ -17,6 +17,7 @@ function getProjectLabel(slug) {
 
 export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabClose, onRefresh }) {
   const implementationSessions = useStore(s => s.implementationSessions);
+  const claudeSessions = useStore(s => s.claudeSessions);
   const agentBrains = useStore(s => s.agentBrains);
   const projects = useStore(s => s.projects);
   const fridayProcessStatus = useStore(s => s.fridayProcessStatus);
@@ -43,6 +44,11 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
     // System terminals → SRV group
     if (activeTabId === 'friday-server' || activeTabId === 'forge-logs' || activeTabId === 'vite-server') {
       setSelectedGroup('__srv__');
+      return;
+    }
+    // Persistent Claude CLI sessions → SES group (scopeId has `session-` prefix)
+    if (typeof activeTabId === 'string' && activeTabId.startsWith('session-')) {
+      setSelectedGroup('__ses__');
       return;
     }
     const session = implementationSessions.find(s => s.id === activeTabId);
@@ -143,7 +149,11 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
   // Sessions visible in the bottom tier
   const visibleSessions = sessionsByProject[selectedGroup] || [];
   const isGroupScopeActive = selectedGroup === scope?.id;
-  const showBottomTier = isGroupScopeActive || visibleSessions.length > 0 || selectedGroup === '__srv__';
+  const showBottomTier = isGroupScopeActive || visibleSessions.length > 0 || selectedGroup === '__srv__' || selectedGroup === '__ses__';
+
+  const sesActive = claudeSessions.filter(t => t.status === 'active').length;
+  const sesDormant = claudeSessions.filter(t => t.status === 'dormant').length;
+  const sesTotal = claudeSessions.length;
 
   const handleGroupClick = (slug) => {
     setSelectedGroup(slug);
@@ -166,6 +176,26 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
     const srvTabs = ['vite-server', 'friday-server', 'forge-logs'];
     onTabSelect(srvTabs.includes(activeTabId) ? activeTabId : 'vite-server');
     playSound('tab');
+  };
+
+  const handleSesClick = () => {
+    setSelectedGroup('__ses__');
+    // Default to first active session, else first tab
+    const onSesTab = typeof activeTabId === 'string' && activeTabId.startsWith('session-');
+    if (!onSesTab) {
+      const first = claudeSessions.find(t => t.status === 'active') || claudeSessions[0];
+      if (first?.scopeId) onTabSelect(first.scopeId);
+    }
+    playSound('tab');
+  };
+
+  const handleSesResume = async (tab) => {
+    if (!window.electronAPI?.sessionTabs?.resume) return;
+    try {
+      await window.electronAPI.sessionTabs.resume(tab.id);
+    } catch (err) {
+      console.error('[sessions] resume failed:', err);
+    }
   };
 
   const srvStatusDotColor = fridayProcessStatus === 'running' ? '#22C55E'
@@ -234,6 +264,43 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
 
         {/* Spacer pushes SRV + controls to right */}
         <div className="flex-1" />
+
+        {/* ── SES Persistent Claude CLI Sessions Pill ── */}
+        {sesTotal > 0 && (
+          <button
+            onClick={handleSesClick}
+            title={`Persistent Claude CLI sessions — ${sesActive} active${sesDormant ? `, ${sesDormant} dormant` : ''}`}
+            className={`
+              relative flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold
+              transition-all duration-200 select-none flex-shrink-0
+              ${selectedGroup === '__ses__'
+                ? 'bg-forge-bg/80 text-amber-300 shadow-sm'
+                : 'text-forge-text-muted hover:text-amber-300 hover:bg-forge-bg/40'
+              }
+            `}
+            style={selectedGroup === '__ses__' ? {
+              boxShadow: '0 1px 0 0 #F59E0B',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+            } : {
+              border: '1px solid transparent',
+            }}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sesActive > 0 ? 'animate-pulse' : ''}`}
+              style={{ backgroundColor: sesActive > 0 ? '#F59E0B' : '#64748b' }}
+            />
+            <span className="tracking-wide">SES</span>
+            <span
+              className="min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
+              style={{
+                backgroundColor: sesActive > 0 ? '#F59E0B25' : '#64748b20',
+                color: sesActive > 0 ? '#F59E0B' : '#64748b',
+              }}
+            >
+              {sesTotal}
+            </span>
+          </button>
+        )}
 
         {/* ── SRV System Group Pill ── */}
         <button
@@ -319,6 +386,27 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
             </>
           )}
 
+          {/* ── SES persistent Claude CLI session tabs ── */}
+          {selectedGroup === '__ses__' && (
+            <>
+              {claudeSessions.length === 0 && (
+                <div className="px-3 py-1.5 text-[10px] text-forge-text-muted/50 font-mono italic">
+                  No persistent sessions
+                </div>
+              )}
+              {claudeSessions.map(tab => (
+                <ClaudeSessionTab
+                  key={tab.id}
+                  tab={tab}
+                  isActive={activeTabId === tab.scopeId}
+                  onSelect={onTabSelect}
+                  onClose={onTabClose}
+                  onResume={handleSesResume}
+                />
+              ))}
+            </>
+          )}
+
           {/* ── SRV system tabs (no close button — system managed) ── */}
           {selectedGroup === '__srv__' && (
             <>
@@ -358,6 +446,66 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ClaudeSessionTab({ tab, isActive, onSelect, onClose, onResume }) {
+  const isActiveStatus = tab.status === 'active';
+  const dotColor = isActiveStatus ? '#22C55E' : '#64748b';
+  const label = tab.label || '(untitled)';
+  const truncated = label.length > 24 ? `${label.slice(0, 23)}\u2026` : label;
+  const selectable = Boolean(tab.scopeId);
+
+  const handleClose = (e) => {
+    e.stopPropagation();
+    // Active + has scopeId: use the scopeId path so the existing Terminal handleTabClose
+    // can kill the PTY (main's terminal:kill handler removes the registry entry).
+    // Dormant / untied: remove directly via sessionTabs — there's no PTY to kill.
+    if (isActiveStatus && tab.scopeId) {
+      onClose(tab.scopeId);
+    } else if (window.electronAPI?.sessionTabs?.remove) {
+      window.electronAPI.sessionTabs.remove(tab.id).catch(err =>
+        console.error('[sessions] remove failed:', err)
+      );
+    }
+  };
+
+  return (
+    <div
+      className={`group flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-mono flex-shrink-0 cursor-pointer
+                  transition-colors border-b-2 ${
+        isActive
+          ? 'border-b-current bg-forge-bg/30'
+          : 'border-transparent hover:bg-forge-bg/20'
+      }`}
+      style={isActive ? { borderBottomColor: dotColor } : undefined}
+      onClick={() => { if (selectable) onSelect(tab.scopeId); }}
+      title={label}
+    >
+      <div
+        className={`w-2 h-2 rounded-full flex-shrink-0 ${isActiveStatus ? 'animate-pulse' : ''}`}
+        style={{ backgroundColor: dotColor }}
+      />
+      <span className={`truncate max-w-[160px] ${isActive ? 'text-forge-text-secondary' : 'text-forge-text-muted'}`}>
+        {truncated}
+      </span>
+      {!isActiveStatus && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onResume(tab); }}
+          className="text-[9px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 border border-amber-500/30"
+          title="Resume this dormant session"
+        >
+          Resume
+        </button>
+      )}
+      <button
+        onClick={handleClose}
+        className="text-forge-text-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 text-sm flex-shrink-0"
+        title={isActiveStatus ? 'Stop & close' : 'Remove from registry'}
+      >
+        &times;
+      </button>
     </div>
   );
 }

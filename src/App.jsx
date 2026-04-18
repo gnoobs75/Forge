@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import TitleBar from './components/TitleBar';
 import SplitPane from './components/SplitPane';
@@ -14,6 +14,21 @@ export default function App() {
   const setShowNewProjectModal = useStore((s) => s.setShowNewProjectModal);
   const activeProject = useStore((s) => s.activeProject);
   const projects = useStore((s) => s.projects);
+
+  // Subscribe to persistent Claude CLI session tabs from main process.
+  // Main-process SessionTracker is the source of truth; renderer just mirrors.
+  useEffect(() => {
+    if (!window.electronAPI?.sessionTabs) return; // bail if preload missing the bridge
+    // Seed from current state
+    window.electronAPI.sessionTabs.list().then((tabs) => {
+      useStore.getState().setClaudeSessions(tabs);
+    }).catch((err) => console.error('[sessions] list failed:', err));
+    // Subscribe to updates (main broadcasts on every tab change)
+    const unsubscribe = window.electronAPI.sessionTabs.onUpdate(({ tabs }) => {
+      useStore.getState().setClaudeSessions(tabs);
+    });
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, []);
 
   const terminalScope = useMemo(() => {
     if (!activeProject) {
