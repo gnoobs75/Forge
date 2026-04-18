@@ -431,7 +431,7 @@ describe('SessionTracker', () => {
     expect(r2.list()).toEqual([]);
   });
 
-  it('recordPendingSpawn stores agentSlug + projectSlug; handleSessionFile synthesizes "<agent> @ <project>" label and does not overwrite it on subsequent jsonl updates', async () => {
+  it('recordPendingSpawn stores recommendationId; label synthesizes to "<agent> · <recId>" and is not overwritten on subsequent jsonl updates', async () => {
     tracker = new SessionTracker({
       registryPath,
       claudeProjectsDir: projectsRoot,
@@ -447,9 +447,11 @@ describe('SessionTracker', () => {
       pid: 42,
       agentSlug: 'solutions-architect',
       projectSlug: 'homestead',
+      recommendationId: 'HOM-042',
     });
     expect(created.agentSlug).toBe('solutions-architect');
     expect(created.projectSlug).toBe('homestead');
+    expect(created.recommendationId).toBe('HOM-042');
 
     // Simulate the watcher firing a sessionFile event after spawn.
     const jsonlPath = join(projectsRoot, 'C--proj-homestead', 'sess-abc.jsonl');
@@ -470,7 +472,7 @@ describe('SessionTracker', () => {
 
     const bound = tracker.list()[0];
     expect(bound.sessionId).toBe('sess-abc');
-    expect(bound.label).toBe('solutions-architect @ homestead');
+    expect(bound.label).toBe('solutions-architect \u00B7 HOM-042');
 
     // A second sessionFile event (tab already bound) must NOT overwrite the
     // synthesized label with a topic-scan result.
@@ -482,7 +484,50 @@ describe('SessionTracker', () => {
     });
 
     const after = tracker.list()[0];
-    expect(after.label).toBe('solutions-architect @ homestead');
+    expect(after.label).toBe('solutions-architect \u00B7 HOM-042');
+  });
+
+  it('recordPendingSpawn with agentSlug but no recommendationId falls back to topic-scan label (not "<agent> @ <project>")', async () => {
+    tracker = new SessionTracker({
+      registryPath,
+      claudeProjectsDir: projectsRoot,
+      adapter: neverCalledAdapter(),
+      logger: SILENT_LOGGER,
+    });
+    await tracker.init();
+
+    const cwd = 'C:/proj/homestead';
+    const created = tracker.recordPendingSpawn({
+      cwd,
+      scopeId: 'scope-agent-2',
+      pid: 43,
+      agentSlug: 'qa-lead',
+      projectSlug: 'homestead',
+      // intentionally no recommendationId — this is an ad-hoc @agent session
+    });
+    expect(created.recommendationId).toBeNull();
+
+    // Write a jsonl with a first user message that will serve as the topic.
+    const jsonlPath = join(projectsRoot, 'C--proj-homestead', 'sess-noRec.jsonl');
+    mkdirSync(join(projectsRoot, 'C--proj-homestead'), { recursive: true });
+    writeFileSync(
+      jsonlPath,
+      JSON.stringify({ role: 'user', content: 'audit the planting detail refactor' }) + '\n',
+      'utf8',
+    );
+
+    await tracker._handleSessionFile({
+      cwd,
+      sessionId: 'sess-noRec',
+      path: jsonlPath,
+      mtimeMs: Date.now() + 1000,
+    });
+
+    const bound = tracker.list()[0];
+    expect(bound.sessionId).toBe('sess-noRec');
+    // Label must be the scanned topic, NOT "qa-lead @ homestead".
+    expect(bound.label).not.toContain('@');
+    expect(bound.label).toBe('audit the planting detail refactor');
   });
 
   it('handleSessionFile does not bind a second tab to a sessionId already claimed by another tab', async () => {

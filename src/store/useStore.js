@@ -730,6 +730,7 @@ export const useStore = create((set, get) => ({
       id: `impl-${Date.now()}`,
       recTimestamp: rec.timestamp,
       recTitle: rec.title,
+      recId: rec.id || null,
       projectSlug: project.slug,
       repoPath: project.repoPath,
       agentColor: rec.agentColor,

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
+import { recDisplayTitle } from '../../utils/rec';
 
 const EFFORT_COLORS = {
   none: 'text-green-400', low: 'text-green-400', medium: 'text-yellow-400', high: 'text-orange-400',
@@ -148,7 +149,7 @@ export default function RecComparison() {
                   style={{ backgroundColor: rec.agentColor }}
                 />
                 <span className="text-xs font-medium" style={{ color: rec.agentColor }}>{rec.agent}</span>
-                <span className="text-sm text-forge-text-primary truncate">{rec.title}</span>
+                <span className="text-sm text-forge-text-primary truncate">{recDisplayTitle(rec)}</span>
                 <span className="text-[11px] text-forge-text-muted ml-auto flex-shrink-0">
                   {projects.find(p => p.slug === rec.project)?.name || rec.project}
                 </span>
@@ -184,7 +185,7 @@ function ComparisonColumn({ rec }) {
       </div>
 
       {/* Title */}
-      <h4 className="text-sm font-semibold text-forge-text-primary mb-1.5">{rec.title}</h4>
+      <h4 className="text-sm font-semibold text-forge-text-primary mb-1.5">{recDisplayTitle(rec)}</h4>
 
       {/* Summary */}
       <p className="text-xs text-forge-text-secondary leading-relaxed mb-3">{rec.summary}</p>

@@ -318,8 +318,8 @@ function createTerminal(scopeId, cols, rows, repoPath) {
 }
 
 // IPC handler for implementation terminals — custom CWD + auto-typed command
-ipcMain.on('terminal:create-implementation', (event, { scopeId, cols, rows, cwd, prompt, flags, mode, modelFlag, agentSlug, projectSlug }) => {
-  console.log(`[Forge] terminal:create-implementation scope="${scopeId}" mode=${mode} cwd=${cwd} agent=${agentSlug || 'none'} project=${projectSlug || 'none'} model=${modelFlag || 'default'}`);
+ipcMain.on('terminal:create-implementation', (event, { scopeId, cols, rows, cwd, prompt, flags, mode, modelFlag, agentSlug, projectSlug, recommendationId }) => {
+  console.log(`[Forge] terminal:create-implementation scope="${scopeId}" mode=${mode} cwd=${cwd} agent=${agentSlug || 'none'} project=${projectSlug || 'none'} rec=${recommendationId || 'none'} model=${modelFlag || 'default'}`);
 
   // Write prompt to temp file to avoid shell escaping issues
   const tmpFile = path.join(os.tmpdir(), `forge-${scopeId}.md`);
@@ -408,7 +408,7 @@ ipcMain.on('terminal:create-implementation', (event, { scopeId, cols, rows, cwd,
       console.log(`[Forge] *** Implementation PTY FULL command (mode=${mode}): ${cmd}`);
       if (global.__sessionTracker) {
         try {
-          global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid, agentSlug: agentSlug || null, projectSlug: projectSlug || null });
+          global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid, agentSlug: agentSlug || null, projectSlug: projectSlug || null, recommendationId: recommendationId || null });
         } catch (err) {
           console.warn('[sessions] recordPendingSpawn failed:', err);
         }
@@ -2202,7 +2202,7 @@ function executeFridayCommand(commandId, command, args) {
     }
 
     case 'spawn-implementation': {
-      const { scopeId, cwd, prompt, mode, modelFlag, agentSlug, projectSlug } = args;
+      const { scopeId, cwd, prompt, mode, modelFlag, agentSlug, projectSlug, recommendationId } = args;
       const shell = process.platform === 'win32' ? (process.env.COMSPEC || 'cmd.exe') : (process.env.SHELL || 'bash');
       const proc = pty.spawn(shell, [], {
         name: 'xterm-256color',
@@ -2254,7 +2254,7 @@ function executeFridayCommand(commandId, command, args) {
         const cmd = ['claude', '--dangerously-skip-permissions', modelArg, `"${instruction}"`].filter(Boolean).join(' ');
         if (global.__sessionTracker) {
           try {
-            global.__sessionTracker.recordPendingSpawn({ cwd: cwd || PATHS.forgeRoot, scopeId, pid: proc.pid, agentSlug: agentSlug || null, projectSlug: projectSlug || null });
+            global.__sessionTracker.recordPendingSpawn({ cwd: cwd || PATHS.forgeRoot, scopeId, pid: proc.pid, agentSlug: agentSlug || null, projectSlug: projectSlug || null, recommendationId: recommendationId || null });
           } catch (err) {
             console.warn('[sessions] recordPendingSpawn failed:', err);
           }

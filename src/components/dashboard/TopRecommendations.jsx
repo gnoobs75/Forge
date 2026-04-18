@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
+import { recDisplayTitle } from '../../utils/rec';
 import { playSound } from '../../utils/sounds';
 import RecFileActions from './RecFileActions';
 import ChartRenderer from './ChartRenderer';
@@ -163,7 +164,7 @@ function RecommendationCard({ rec, projectName }) {
 
           {/* Title */}
           <div className={`text-sm font-medium leading-tight ${isResolved ? 'text-forge-text-muted line-through' : 'text-forge-text-primary'}`}>
-            {rec.title}
+            {recDisplayTitle(rec)}
           </div>
 
           {/* Summary */}

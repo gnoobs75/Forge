@@ -1,6 +1,7 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { useStore } from '../../store/useStore';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
+import { recDisplayTitle } from '../../utils/rec';
 import { playSound } from '../../utils/sounds';
 import { getAgentBrain, getModelFlag } from '../../utils/brainConfig';
 import RecFileActions from './RecFileActions';
@@ -649,7 +650,7 @@ function ExpandableRecCard({ rec }) {
           </div>
 
           <div className={`text-sm font-medium leading-tight ${isResolved ? 'text-forge-text-secondary line-through' : 'text-forge-text-primary'}`}>
-            {rec.title}
+            {recDisplayTitle(rec)}
           </div>
           <div className="text-sm text-forge-text-secondary mt-1 leading-relaxed">{rec.summary}</div>
           <RecFileActions rec={rec} />

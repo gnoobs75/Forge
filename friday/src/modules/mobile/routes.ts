@@ -245,6 +245,7 @@ export async function handleMobileRoute(
             modelFlag: "",
             agentSlug: rec.agent || "unknown",
             projectSlug: project,
+            recommendationId: typeof rec.id === "string" ? rec.id : null,
           },
           confirmRequired: false,
         });

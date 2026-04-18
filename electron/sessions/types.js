@@ -14,5 +14,6 @@
  * @property {number} restoreFailureCount      Consecutive restore failures since last success. Used for quarantine. 0 normally.
  * @property {string|null} [agentSlug]         Forge agent slug at spawn time (e.g. "solutions-architect"). Null for generic PTYs.
  * @property {string|null} [projectSlug]       Forge project slug at spawn time. Null for studio / non-project.
+ * @property {string|null} [recommendationId]  Forge rec ID at spawn time (e.g. "HOM-042"). Null for non-rec CLIs.
  */
 module.exports = {};

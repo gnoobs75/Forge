@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { playSound } from '../../utils/sounds';
+import { recDisplayTitle } from '../../utils/rec';
 import { BRAIN_PROVIDERS, RECOMMENDED_BRAINS, getAgentBrain, getModelDisplay } from '../../utils/brainConfig';
 
 export const AGENT_ICONS = {
@@ -356,7 +357,7 @@ export default function AgentDetailPanel({ agentId, onClose }) {
                     key={i}
                     className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border"
                   >
-                    <div className="text-xs font-medium text-forge-text-primary">{rec.title}</div>
+                    <div className="text-xs font-medium text-forge-text-primary">{recDisplayTitle(rec)}</div>
                     <div className="text-[10px] text-forge-text-muted mt-1">{rec.project}</div>
                     {rec.summary && (
                       <div className="text-[11px] text-forge-text-secondary mt-1 leading-relaxed">

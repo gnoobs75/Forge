@@ -312,7 +312,8 @@ export default function Terminal({ scope }) {
             session.mode || 'auto',
             modelFlag,
             session.agentSlug || session.agentId || null,
-            session.projectSlug || null
+            session.projectSlug || null,
+            session.recId || null
           );
         } else {
           // Interactive agent session — use createAgentSession
@@ -336,7 +337,10 @@ export default function Terminal({ scope }) {
           });
           const flags = '--dangerously-skip-permissions';
           window.electronAPI.terminal.createImplementation(
-            session.id, cols, rows, session.repoPath || window.forgePaths?.forgeRoot || '', prompt, flags, 'auto', modelFlag
+            session.id, cols, rows, session.repoPath || window.forgePaths?.forgeRoot || '', prompt, flags, 'auto', modelFlag,
+            session.agentSlug || session.agentId || null,
+            session.projectSlug || null,
+            session.recId || null
           );
         }
       } else if (session.type === 'tool') {
@@ -357,7 +361,10 @@ export default function Terminal({ scope }) {
           const prompt = buildImplementPrompt(rec, project, session.approachId);
           const flags = session.mode === 'auto' ? '--dangerously-skip-permissions' : '';
           window.electronAPI.terminal.createImplementation(
-            session.id, cols, rows, session.repoPath, prompt, flags, session.mode, modelFlag
+            session.id, cols, rows, session.repoPath, prompt, flags, session.mode, modelFlag,
+            session.agentSlug || null,
+            session.projectSlug || null,
+            session.recId || rec.id || null
           );
         }
       }

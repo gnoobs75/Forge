@@ -17,8 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: (scopeId, cols, rows, repoPath) => ipcRenderer.send('terminal:create', { scopeId, cols, rows, repoPath }),
     input: (scopeId, data) => ipcRenderer.send('terminal:input', { scopeId, data }),
     resize: (scopeId, cols, rows) => ipcRenderer.send('terminal:resize', { scopeId, cols, rows }),
-    createImplementation: (scopeId, cols, rows, cwd, prompt, flags, mode, modelFlag, agentSlug, projectSlug) =>
-      ipcRenderer.send('terminal:create-implementation', { scopeId, cols, rows, cwd, prompt, flags, mode, modelFlag, agentSlug, projectSlug }),
+    createImplementation: (scopeId, cols, rows, cwd, prompt, flags, mode, modelFlag, agentSlug, projectSlug, recommendationId) =>
+      ipcRenderer.send('terminal:create-implementation', { scopeId, cols, rows, cwd, prompt, flags, mode, modelFlag, agentSlug, projectSlug, recommendationId: recommendationId || null }),
     createAgentSession: (scopeId, cols, rows, agentSlug, projectSlug, modelFlag) =>
       ipcRenderer.send('terminal:create-agent-session', { scopeId, cols, rows, agentSlug, projectSlug, modelFlag }),
     createTool: (scopeId, cols, rows, cwd, command, env) =>

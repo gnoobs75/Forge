@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useStore } from '../../store/useStore';
+import { recDisplayTitle } from '../../utils/rec';
 import { AGENT_ICONS, AGENT_INVOKE, AGENT_DETAILS } from './AgentDetailPanel';
 import AgentAvatar3D from './AgentAvatar3D';
 import AgentProfileStats from './AgentProfileStats';
@@ -384,7 +385,7 @@ function ExpandableRecCard({ rec }) {
           </div>
 
           <div className={`text-sm font-medium leading-tight ${isResolved ? 'text-forge-text-muted line-through' : 'text-forge-text-primary'}`}>
-            {rec.title}
+            {recDisplayTitle(rec)}
           </div>
           <div className="text-xs text-forge-text-secondary mt-1 leading-relaxed">{rec.summary}</div>
         </div>

@@ -3,6 +3,35 @@ import * as path from "node:path";
 import type { FridayTool, ToolResult } from "../types.ts";
 import { findHqDir, readJsonSafe } from "./hq-utils.ts";
 
+/**
+ * Allocate the next sequential rec ID for a project.
+ * ID format: "<PREFIX>-<NNN>" where prefix = first 3 uppercase alnum chars
+ * of the slug. Counter persisted at {hqDir}/projects/{slug}/rec-counter.json.
+ * Not atomic across processes — Friday is a singleton, so serial writes from
+ * a single runtime are fine.
+ */
+function prefixForSlug(slug: string): string {
+  return (slug || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3);
+}
+
+function assignRecId(hqDir: string, projectSlug: string): string {
+  const counterPath = path.join(hqDir, "projects", projectSlug, "rec-counter.json");
+  let next = 1;
+  try {
+    const raw = fs.readFileSync(counterPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    const n = Number(parsed?.next);
+    if (Number.isFinite(n) && n >= 1) next = n;
+  } catch {
+    // missing or corrupt counter — start at 1
+  }
+  const prefix = prefixForSlug(projectSlug);
+  const id = `${prefix}-${String(next).padStart(3, "0")}`;
+  fs.mkdirSync(path.dirname(counterPath), { recursive: true });
+  fs.writeFileSync(counterPath, JSON.stringify({ next: next + 1 }, null, 2) + "\n");
+  return id;
+}
+
 interface ValidationResult {
   valid: boolean;
   error?: string;
@@ -54,7 +83,12 @@ async function createRecommendation(hqDir: string, project: string, data: any): 
   const recsDir = path.join(hqDir, "projects", project, "recommendations");
   fs.mkdirSync(recsDir, { recursive: true });
 
+  // Assign a Forge-style project-prefixed ID (e.g. "HOM-042") unless the
+  // caller already supplied one (idempotent re-runs / external tooling).
+  const id = typeof data.id === "string" && data.id ? data.id : assignRecId(hqDir, project);
+
   const rec = {
+    id,
     ...data,
     project,
     timestamp,
