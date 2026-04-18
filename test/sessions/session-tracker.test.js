@@ -431,6 +431,60 @@ describe('SessionTracker', () => {
     expect(r2.list()).toEqual([]);
   });
 
+  it('recordPendingSpawn stores agentSlug + projectSlug; handleSessionFile synthesizes "<agent> @ <project>" label and does not overwrite it on subsequent jsonl updates', async () => {
+    tracker = new SessionTracker({
+      registryPath,
+      claudeProjectsDir: projectsRoot,
+      adapter: neverCalledAdapter(),
+      logger: SILENT_LOGGER,
+    });
+    await tracker.init();
+
+    const cwd = 'C:/proj/homestead';
+    const created = tracker.recordPendingSpawn({
+      cwd,
+      scopeId: 'scope-agent-1',
+      pid: 42,
+      agentSlug: 'solutions-architect',
+      projectSlug: 'homestead',
+    });
+    expect(created.agentSlug).toBe('solutions-architect');
+    expect(created.projectSlug).toBe('homestead');
+
+    // Simulate the watcher firing a sessionFile event after spawn.
+    const jsonlPath = join(projectsRoot, 'C--proj-homestead', 'sess-abc.jsonl');
+    mkdirSync(join(projectsRoot, 'C--proj-homestead'), { recursive: true });
+    writeFileSync(
+      jsonlPath,
+      JSON.stringify({ role: 'user', content: 'Read the agent brief at C:/Users/charl/AppData/Local/Temp/forge-agent-xyz.md. Follow its instructions.' }) + '\n',
+      'utf8',
+    );
+
+    // Direct-call: fastest, no chokidar race.
+    await tracker._handleSessionFile({
+      cwd,
+      sessionId: 'sess-abc',
+      path: jsonlPath,
+      mtimeMs: Date.now() + 1000,
+    });
+
+    const bound = tracker.list()[0];
+    expect(bound.sessionId).toBe('sess-abc');
+    expect(bound.label).toBe('solutions-architect @ homestead');
+
+    // A second sessionFile event (tab already bound) must NOT overwrite the
+    // synthesized label with a topic-scan result.
+    await tracker._handleSessionFile({
+      cwd,
+      sessionId: 'sess-abc',
+      path: jsonlPath,
+      mtimeMs: Date.now() + 2000,
+    });
+
+    const after = tracker.list()[0];
+    expect(after.label).toBe('solutions-architect @ homestead');
+  });
+
   it('closeByScopeId removes the tab matching the scopeId; is a no-op for unknown scopeId', async () => {
     tracker = new SessionTracker({
       registryPath,

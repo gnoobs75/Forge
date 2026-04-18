@@ -408,7 +408,7 @@ ipcMain.on('terminal:create-implementation', (event, { scopeId, cols, rows, cwd,
       console.log(`[Forge] *** Implementation PTY FULL command (mode=${mode}): ${cmd}`);
       if (global.__sessionTracker) {
         try {
-          global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid });
+          global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid, agentSlug: agentSlug || null, projectSlug: projectSlug || null });
         } catch (err) {
           console.warn('[sessions] recordPendingSpawn failed:', err);
         }
@@ -2183,7 +2183,7 @@ function executeFridayCommand(commandId, command, args) {
         console.log(`[Forge Friday] Agent PTY command (danger=${dangerMode}): ${cmd.slice(0, 200)}...`);
         if (global.__sessionTracker) {
           try {
-            global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid });
+            global.__sessionTracker.recordPendingSpawn({ cwd, scopeId, pid: proc.pid, agentSlug: agentSkill || null, projectSlug: projectSlug || null });
           } catch (err) {
             console.warn('[sessions] recordPendingSpawn failed:', err);
           }
@@ -2254,7 +2254,7 @@ function executeFridayCommand(commandId, command, args) {
         const cmd = ['claude', '--dangerously-skip-permissions', modelArg, `"${instruction}"`].filter(Boolean).join(' ');
         if (global.__sessionTracker) {
           try {
-            global.__sessionTracker.recordPendingSpawn({ cwd: cwd || PATHS.forgeRoot, scopeId, pid: proc.pid });
+            global.__sessionTracker.recordPendingSpawn({ cwd: cwd || PATHS.forgeRoot, scopeId, pid: proc.pid, agentSlug: agentSlug || null, projectSlug: projectSlug || null });
           } catch (err) {
             console.warn('[sessions] recordPendingSpawn failed:', err);
           }
@@ -2474,7 +2474,7 @@ ipcMain.on('terminal:create-agent-session', (event, { scopeId, cols, rows, agent
       console.log(`[Forge] Agent session command: ${cmd.slice(0, 180)}...`);
       if (global.__sessionTracker) {
         try {
-          global.__sessionTracker.recordPendingSpawn({ cwd: agentRepoPath, scopeId, pid: proc.pid });
+          global.__sessionTracker.recordPendingSpawn({ cwd: agentRepoPath, scopeId, pid: proc.pid, agentSlug: agentSlug || null, projectSlug: projectSlug || null });
         } catch (err) {
           console.warn('[sessions] recordPendingSpawn failed:', err);
         }

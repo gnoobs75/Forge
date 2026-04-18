@@ -12,5 +12,7 @@
  * @property {number} lastActivityAt           Date.now() of most recent jsonl mtime or spawn.
  * @property {string|null} scopeId             Forge's existing PTY scopeId (ties into ptyProcesses map). Null if untied.
  * @property {number} restoreFailureCount      Consecutive restore failures since last success. Used for quarantine. 0 normally.
+ * @property {string|null} [agentSlug]         Forge agent slug at spawn time (e.g. "solutions-architect"). Null for generic PTYs.
+ * @property {string|null} [projectSlug]       Forge project slug at spawn time. Null for studio / non-project.
  */
 module.exports = {};

@@ -182,17 +182,27 @@ class SessionTracker extends EventEmitter {
   }
 
   /**
-   * @param {{ cwd: string, scopeId: string, pid: number|null }} opts
+   * @param {{ cwd: string, scopeId: string, pid: number|null, agentSlug?: string|null, projectSlug?: string|null }} opts
    * @returns {import('./types').TabRecord}
    */
   recordPendingSpawn(opts) {
-    let { cwd, scopeId, pid } = opts;
+    let { cwd, scopeId, pid, agentSlug = null, projectSlug = null } = opts;
     cwd = normalizeCwd(cwd);
     const now = this.now();
 
     let tab = this.registry.list().find(t => t.scopeId === scopeId);
     if (tab) {
-      tab = { ...tab, pid, status: 'active', lastActivityAt: now };
+      // Merge agentSlug/projectSlug but do not overwrite an existing value with null.
+      const mergedAgent = agentSlug ?? tab.agentSlug ?? null;
+      const mergedProject = projectSlug ?? tab.projectSlug ?? null;
+      tab = {
+        ...tab,
+        pid,
+        status: 'active',
+        lastActivityAt: now,
+        agentSlug: mergedAgent,
+        projectSlug: mergedProject,
+      };
       this.registry.upsert(tab);
     } else {
       tab = {
@@ -206,6 +216,8 @@ class SessionTracker extends EventEmitter {
         lastActivityAt: now,
         scopeId,
         restoreFailureCount: 0,
+        agentSlug: agentSlug ?? null,
+        projectSlug: projectSlug ?? null,
       };
       this.registry.upsert(tab);
     }
@@ -232,7 +244,10 @@ class SessionTracker extends EventEmitter {
       if (spawnAt === undefined) continue;
       if (spawnAt > mtimeMs) continue;
 
-      const label = (await scanTopic(jsonlPath)) || '(new session)';
+      // Synthesize a nicer label from agent/project when we captured them at
+      // spawn time; fall back to the jsonl topic scan only if neither is set.
+      const synthesized = this._synthesizeLabel(tab);
+      const label = synthesized || (await scanTopic(jsonlPath)) || '(new session)';
       const updated = { ...tab, sessionId, label, lastActivityAt: this.now() };
       this.registry.upsert(updated);
       if (tab.scopeId) this.pendingSpawns.delete(tab.scopeId);
@@ -245,7 +260,12 @@ class SessionTracker extends EventEmitter {
     // Second pass: an already-bound tab is receiving updates.
     for (const tab of tabs) {
       if (tab.sessionId === sessionId) {
-        const label = (await scanTopic(jsonlPath)) || tab.label;
+        // Do not overwrite a synthesized (agent/project-based) label — that was
+        // captured at spawn and is more stable than a scanned topic.
+        const hasSynthesized = !!(tab.agentSlug || tab.projectSlug);
+        const label = hasSynthesized
+          ? tab.label
+          : (await scanTopic(jsonlPath)) || tab.label;
         const updated = { ...tab, label, lastActivityAt: this.now() };
         this.registry.upsert(updated);
         try { await this.registry.save(); }
@@ -254,6 +274,21 @@ class SessionTracker extends EventEmitter {
         return;
       }
     }
+  }
+
+  /**
+   * Build a "<agent> @ <project>" label from spawn-time metadata, falling back
+   * to whichever slug is set. Returns null when neither is available.
+   * @param {{ agentSlug?: string|null, projectSlug?: string|null }} tab
+   * @returns {string|null}
+   */
+  _synthesizeLabel(tab) {
+    const a = tab.agentSlug || null;
+    const p = tab.projectSlug || null;
+    if (a && p) return `${a} @ ${p}`;
+    if (a) return a;
+    if (p) return p;
+    return null;
   }
 
   markDormant(scopeId) {
