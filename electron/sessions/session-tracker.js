@@ -9,6 +9,10 @@ const DEFAULT_MAX_RESTORE_FAILURES = 3;
 const DEFAULT_DORMANT_TTL_MS = 14 * 24 * 3600 * 1000;
 const RESTORE_STAGGER_MS = 250;
 
+function normalizeCwd(cwd) {
+  return typeof cwd === 'string' ? cwd.replace(/\\/g, '/') : cwd;
+}
+
 /**
  * SpawnResult — what a SpawnAdapter returns when it successfully starts a PTY.
  *
@@ -99,12 +103,16 @@ class SessionTracker extends EventEmitter {
         continue;
       }
 
+      // Migrate older-format records with backslashed cwd to forward slashes
+      // so watcher-bind comparison succeeds on the next jsonl event.
+      const migrated = { ...tab, cwd: normalizeCwd(tab.cwd) };
+
       // Any active record must be dormant now — the process that owned it
       // is gone (we just started). Clear pid + scopeId.
-      if (tab.status === 'active') {
-        kept.push({ ...tab, status: 'dormant', pid: null, scopeId: null });
+      if (migrated.status === 'active') {
+        kept.push({ ...migrated, status: 'dormant', pid: null, scopeId: null });
       } else {
-        kept.push(tab);
+        kept.push(migrated);
       }
     }
 
@@ -178,7 +186,8 @@ class SessionTracker extends EventEmitter {
    * @returns {import('./types').TabRecord}
    */
   recordPendingSpawn(opts) {
-    const { cwd, scopeId, pid } = opts;
+    let { cwd, scopeId, pid } = opts;
+    cwd = normalizeCwd(cwd);
     const now = this.now();
 
     let tab = this.registry.list().find(t => t.scopeId === scopeId);
@@ -218,7 +227,7 @@ class SessionTracker extends EventEmitter {
     // pending-spawn timestamp predates this file's mtime.
     for (const tab of tabs) {
       if (tab.sessionId !== null && tab.sessionId !== undefined) continue;
-      if (tab.cwd !== cwd) continue;
+      if (normalizeCwd(tab.cwd) !== cwd) continue;
       const spawnAt = tab.scopeId ? this.pendingSpawns.get(tab.scopeId) : undefined;
       if (spawnAt === undefined) continue;
       if (spawnAt > mtimeMs) continue;

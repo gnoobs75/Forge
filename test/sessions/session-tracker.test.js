@@ -159,6 +159,48 @@ describe('SessionTracker', () => {
     expect(list[0].label).toBe('hello');
   });
 
+  it('handleSessionFile binds tab even when tab.cwd was recorded with backslashes', async () => {
+    tracker = new SessionTracker({
+      registryPath,
+      claudeProjectsDir: projectsRoot,
+      adapter: neverCalledAdapter(),
+      logger: SILENT_LOGGER,
+    });
+    await tracker.init();
+
+    // Record a pending spawn with a backslashed cwd (Windows-style). The tracker
+    // must normalize to forward slashes on write so watcher-bind comparison
+    // later succeeds (session-watcher.unescapeCwd always emits forward slashes).
+    const created = tracker.recordPendingSpawn({
+      cwd: 'C:\\fake\\path',
+      scopeId: 'win-scope',
+      pid: 1,
+    });
+    expect(created.cwd).toBe('C:/fake/path');
+    expect(tracker.list()[0].cwd).toBe('C:/fake/path');
+
+    // Pre-create the project dir so chokidar picks it up before the add event.
+    const projDir = join(projectsRoot, 'C--fake-path');
+    mkdirSync(projDir, { recursive: true });
+
+    // Give the watcher a tick to settle before we write the jsonl.
+    await new Promise(r => setTimeout(r, 100));
+
+    const jsonlPath = join(projDir, 'sess-win.jsonl');
+    writeFileSync(
+      jsonlPath,
+      JSON.stringify({ role: 'user', content: 'windows wins' }) + '\n',
+      'utf8',
+    );
+
+    await new Promise(r => setTimeout(r, 1000));
+
+    const list = tracker.list();
+    expect(list.length).toBe(1);
+    expect(list[0].sessionId).toBe('sess-win');
+    expect(list[0].label).toBe('windows wins');
+  });
+
   it('markDormant flips a bound tab to dormant: pid → null, status → dormant, scopeId cleared, tab retained', async () => {
     tracker = new SessionTracker({
       registryPath,
