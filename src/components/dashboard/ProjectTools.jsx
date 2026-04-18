@@ -22,9 +22,6 @@ export default function ProjectTools({ slug, project }) {
   const startToolSession = useStore(s => s.startToolSession);
 
   const toolsPath = `projects/${slug}/tools.json`;
-  const absToolsPath = window.forgePaths?.hqData
-    ? `${window.forgePaths.hqData}/${toolsPath}`
-    : null;
 
   useEffect(() => {
     if (!window.electronAPI?.hq) return;
@@ -34,7 +31,7 @@ export default function ProjectTools({ slug, project }) {
       if (cancelled) return;
       if (!res.ok) {
         // Not-found is the empty state — don't treat as error.
-        if (/ENOENT|not found/i.test(res.error || '')) {
+        if (/^ENOENT/.test(res.error || '')) {
           setConfig({ tools: [] });
         } else {
           setLoadError(res.error || 'Failed to read tools.json');
@@ -68,9 +65,7 @@ export default function ProjectTools({ slug, project }) {
   };
 
   const handleEditFile = () => {
-    if (absToolsPath && window.electronAPI?.hq?.showInFolder) {
-      window.electronAPI.hq.showInFolder(absToolsPath);
-    }
+    window.electronAPI?.hq?.showInFolder?.(toolsPath);
   };
 
   if (loadError) {
@@ -116,7 +111,7 @@ export default function ProjectTools({ slug, project }) {
         </div>
       ))}
 
-      {absToolsPath && (
+      {window.electronAPI?.hq?.showInFolder && (
         <div className="text-right">
           <button
             onClick={handleEditFile}
