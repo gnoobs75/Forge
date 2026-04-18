@@ -15,6 +15,15 @@ function getProjectLabel(slug) {
   return PROJECT_LABELS[slug] || slug.slice(0, 3).toUpperCase();
 }
 
+// Compare two filesystem paths with slash/case normalization.
+// Windows paths are case-insensitive and the registry stores forward-slash
+// while project.repoPath may be backslash — normalize both before compare.
+function cwdMatches(a, b) {
+  if (!a || !b) return false;
+  const norm = (s) => s.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  return norm(a) === norm(b);
+}
+
 export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabClose, onRefresh }) {
   const implementationSessions = useStore(s => s.implementationSessions);
   const claudeSessions = useStore(s => s.claudeSessions);
@@ -46,9 +55,14 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
       setSelectedGroup('__srv__');
       return;
     }
-    // Persistent Claude CLI sessions → SES group (scopeId has `session-` prefix)
+    // Persistent Claude CLI sessions → the project group whose repoPath matches
+    // the session's cwd, else fall back to HQ (studio).
     if (typeof activeTabId === 'string' && activeTabId.startsWith('session-')) {
-      setSelectedGroup('__ses__');
+      const sesTab = claudeSessions.find(t => t.scopeId === activeTabId);
+      if (sesTab) {
+        const owner = projects.find(p => cwdMatches(sesTab.cwd, p.repoPath));
+        setSelectedGroup(owner?.slug || 'studio');
+      }
       return;
     }
     const session = implementationSessions.find(s => s.id === activeTabId);
@@ -57,7 +71,7 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
     } else if (activeTabId === scope?.id) {
       setSelectedGroup(scope?.id);
     }
-  }, [activeTabId, implementationSessions, scope?.id]);
+  }, [activeTabId, implementationSessions, claudeSessions, projects, scope?.id]);
 
   // SRV group attention: new output in inactive system terminals
   useEffect(() => {
@@ -97,6 +111,20 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
     return groups;
   }, [implementationSessions]);
 
+  // Distribute persistent Claude CLI sessions (TabRecord[]) into project groups
+  // by matching tab.cwd against each project's repoPath. Unmatched sessions —
+  // including the "studio" scope terminal and strays — fall back to the HQ group.
+  const claudeSessionsByProject = useMemo(() => {
+    const groups = {};
+    for (const tab of claudeSessions) {
+      const owner = projects.find(p => cwdMatches(tab.cwd, p.repoPath));
+      const slug = owner?.slug || 'studio';
+      if (!groups[slug]) groups[slug] = [];
+      groups[slug].push(tab);
+    }
+    return groups;
+  }, [claudeSessions, projects]);
+
   // Detect status transitions for attention flash
   useEffect(() => {
     const newStatuses = {};
@@ -123,9 +151,11 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
     const slugs = new Set(['studio']);
     if (scope?.id && scope.id !== 'studio') slugs.add(scope.id);
     for (const slug of Object.keys(sessionsByProject)) slugs.add(slug);
+    for (const slug of Object.keys(claudeSessionsByProject)) slugs.add(slug);
 
     return Array.from(slugs).map(slug => {
       const sessions = sessionsByProject[slug] || [];
+      const claudeTabs = claudeSessionsByProject[slug] || [];
       const running = sessions.filter(s => s.status === 'running').length;
       const done = sessions.filter(s => s.status === 'done').length;
       const failed = sessions.filter(s => s.status === 'failed').length;
@@ -136,34 +166,45 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
         slug,
         label: getProjectLabel(slug),
         fullName: slug === 'studio' ? 'Studio' : (project?.name || slug),
-        count: sessions.length,
+        // Include distributed persistent Claude CLI sessions in the count
+        count: sessions.length + claudeTabs.length,
         running,
         done,
         failed,
         needsAttention,
         sessions,
+        claudeTabs,
       };
     });
-  }, [sessionsByProject, scope?.id, projects, seenGroups]);
+  }, [sessionsByProject, claudeSessionsByProject, scope?.id, projects, seenGroups]);
 
   // Sessions visible in the bottom tier
   const visibleSessions = sessionsByProject[selectedGroup] || [];
+  const visibleClaudeTabs = claudeSessionsByProject[selectedGroup] || [];
   const isGroupScopeActive = selectedGroup === scope?.id;
-  const showBottomTier = isGroupScopeActive || visibleSessions.length > 0 || selectedGroup === '__srv__' || selectedGroup === '__ses__';
-
-  const sesActive = claudeSessions.filter(t => t.status === 'active').length;
-  const sesDormant = claudeSessions.filter(t => t.status === 'dormant').length;
-  const sesTotal = claudeSessions.length;
+  const showBottomTier =
+    isGroupScopeActive ||
+    visibleSessions.length > 0 ||
+    visibleClaudeTabs.length > 0 ||
+    selectedGroup === '__srv__';
 
   const handleGroupClick = (slug) => {
     setSelectedGroup(slug);
     setSeenGroups(prev => new Set([...prev, slug]));
+    const implTabs = sessionsByProject[slug] || [];
+    const claudeTabs = claudeSessionsByProject[slug] || [];
     if (slug === scope?.id) {
       onTabSelect(scope?.id);
-    } else if (sessionsByProject[slug]?.length > 0) {
-      const currentInGroup = sessionsByProject[slug]?.find(s => s.id === activeTabId);
-      if (!currentInGroup) {
-        onTabSelect(sessionsByProject[slug][0].id);
+    } else if (implTabs.length > 0) {
+      const currentInGroup = implTabs.find(s => s.id === activeTabId);
+      if (!currentInGroup) onTabSelect(implTabs[0].id);
+    } else if (claudeTabs.length > 0) {
+      const onClaudeTabInGroup = claudeTabs.some(t => t.scopeId === activeTabId);
+      if (!onClaudeTabInGroup) {
+        const first = claudeTabs.find(t => t.status === 'active' && t.scopeId)
+          || claudeTabs.find(t => t.scopeId)
+          || claudeTabs[0];
+        if (first?.scopeId) onTabSelect(first.scopeId);
       }
     }
     playSound('tab');
@@ -175,17 +216,6 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
     // Default to vite-server tab unless already on a SRV tab
     const srvTabs = ['vite-server', 'friday-server', 'forge-logs'];
     onTabSelect(srvTabs.includes(activeTabId) ? activeTabId : 'vite-server');
-    playSound('tab');
-  };
-
-  const handleSesClick = () => {
-    setSelectedGroup('__ses__');
-    // Default to first active session, else first tab
-    const onSesTab = typeof activeTabId === 'string' && activeTabId.startsWith('session-');
-    if (!onSesTab) {
-      const first = claudeSessions.find(t => t.status === 'active') || claudeSessions[0];
-      if (first?.scopeId) onTabSelect(first.scopeId);
-    }
     playSound('tab');
   };
 
@@ -265,43 +295,6 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
         {/* Spacer pushes SRV + controls to right */}
         <div className="flex-1" />
 
-        {/* ── SES Persistent Claude CLI Sessions Pill ── */}
-        {sesTotal > 0 && (
-          <button
-            onClick={handleSesClick}
-            title={`Persistent Claude CLI sessions — ${sesActive} active${sesDormant ? `, ${sesDormant} dormant` : ''}`}
-            className={`
-              relative flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold
-              transition-all duration-200 select-none flex-shrink-0
-              ${selectedGroup === '__ses__'
-                ? 'bg-forge-bg/80 text-amber-300 shadow-sm'
-                : 'text-forge-text-muted hover:text-amber-300 hover:bg-forge-bg/40'
-              }
-            `}
-            style={selectedGroup === '__ses__' ? {
-              boxShadow: '0 1px 0 0 #F59E0B',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-            } : {
-              border: '1px solid transparent',
-            }}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sesActive > 0 ? 'animate-pulse' : ''}`}
-              style={{ backgroundColor: sesActive > 0 ? '#F59E0B' : '#64748b' }}
-            />
-            <span className="tracking-wide">SES</span>
-            <span
-              className="min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
-              style={{
-                backgroundColor: sesActive > 0 ? '#F59E0B25' : '#64748b20',
-                color: sesActive > 0 ? '#F59E0B' : '#64748b',
-              }}
-            >
-              {sesTotal}
-            </span>
-          </button>
-        )}
-
         {/* ── SRV System Group Pill ── */}
         <button
           onClick={handleSrvClick}
@@ -378,23 +371,7 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
                   onClose={onTabClose}
                 />
               ))}
-              {visibleSessions.length === 0 && !isGroupScopeActive && (
-                <div className="px-3 py-1.5 text-[10px] text-forge-text-muted/50 font-mono italic">
-                  No sessions
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ── SES persistent Claude CLI session tabs ── */}
-          {selectedGroup === '__ses__' && (
-            <>
-              {claudeSessions.length === 0 && (
-                <div className="px-3 py-1.5 text-[10px] text-forge-text-muted/50 font-mono italic">
-                  No persistent sessions
-                </div>
-              )}
-              {claudeSessions.map(tab => (
+              {visibleClaudeTabs.map(tab => (
                 <ClaudeSessionTab
                   key={tab.id}
                   tab={tab}
@@ -404,6 +381,11 @@ export default function TerminalTabBar({ scope, activeTabId, onTabSelect, onTabC
                   onResume={handleSesResume}
                 />
               ))}
+              {visibleSessions.length === 0 && visibleClaudeTabs.length === 0 && !isGroupScopeActive && (
+                <div className="px-3 py-1.5 text-[10px] text-forge-text-muted/50 font-mono italic">
+                  No sessions
+                </div>
+              )}
             </>
           )}
 
