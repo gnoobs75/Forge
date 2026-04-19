@@ -84,6 +84,28 @@ export async function handleMobileRoute(
     return json({ sessions: registry.listAll() });
   }
 
+  // GET /api/mobile/sessions/:scopeId/logs — hydrate buffered output on reconnect
+  {
+    const logsMatch = p.match(/^\/api\/mobile\/sessions\/([^/]+)\/logs$/);
+    if (logsMatch && req.method === "GET") {
+      const scopeId = decodeURIComponent(logsMatch[1]);
+      const session = registry.get(scopeId);
+      if (!session) {
+        return json({ error: "session not found", scopeId }, 404);
+      }
+      return json({
+        scopeId: session.scopeId,
+        status: session.status,
+        prompt: session.prompt,
+        lastOutput: session.lastOutput,
+        startedAt: session.startedAt,
+        project: session.project,
+        agent: session.agent,
+        taskDescription: session.taskDescription,
+      });
+    }
+  }
+
   if (p === "/api/mobile/recommendations" && req.method === "GET") {
     const projectFilter = url.searchParams.get("project");
     const recs: unknown[] = [];
