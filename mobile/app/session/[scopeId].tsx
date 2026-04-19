@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
+import { api } from "@/lib/api";
 import { useForgeStore } from "@/lib/store";
 import { ForgeWebSocket } from "@/lib/ws";
 import { PromptButtons } from "@/components/PromptButtons";
@@ -21,6 +22,23 @@ export default function SessionScreen() {
 
   useEffect(() => {
     if (!connection || !scopeId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const logs = await api.sessionLogs(connection, scopeId);
+        if (cancelled) return;
+        setOutput(logs.lastOutput.slice(-500));
+        setPrompt((logs.prompt as DetectedPrompt | null) ?? null);
+        setStatus(logs.status);
+      } catch {
+        // 404 or network error — let the WebSocket + store-based fallback populate state.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [scopeId, connection]);
+
+  useEffect(() => {
+    if (!connection || !scopeId) return;
 
     const ws = new ForgeWebSocket(connection, `/ws/terminal/${scopeId}`);
 
@@ -28,7 +46,7 @@ export default function SessionScreen() {
       const data = msg.data as string;
       setOutput((prev) => {
         const newLines = [...prev, ...data.split("\n")];
-        return newLines.slice(-50);
+        return newLines.slice(-500);
       });
     });
 

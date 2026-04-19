@@ -114,6 +114,17 @@ export interface ProjectDetail {
   sessions: SessionInfo[];
 }
 
+export interface SessionLogsResponse {
+  scopeId: string;
+  status: "running" | "waiting" | "complete";
+  prompt: unknown | null;
+  lastOutput: string[];
+  startedAt: string;
+  project: string;
+  agent: string;
+  taskDescription: string;
+}
+
 export const api = {
   status: (conn: ForgeConnection) =>
     apiFetch<StatusResponse>(conn, "/api/mobile/status"),
@@ -123,6 +134,12 @@ export const api = {
 
   sessions: (conn: ForgeConnection) =>
     apiFetch<{ sessions: SessionInfo[] }>(conn, "/api/mobile/sessions"),
+
+  sessionLogs: (conn: ForgeConnection, scopeId: string) =>
+    apiFetch<SessionLogsResponse>(
+      conn,
+      `/api/mobile/sessions/${encodeURIComponent(scopeId)}/logs`,
+    ),
 
   recommendations: (conn: ForgeConnection, project?: string) => {
     const qs = project ? `?project=${encodeURIComponent(project)}` : "";
