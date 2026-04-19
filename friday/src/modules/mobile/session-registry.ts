@@ -2,7 +2,7 @@
 import type { SessionInfo, SessionStatus } from "./types.ts";
 import { detectPrompt } from "./prompt-detector.ts";
 
-const MAX_OUTPUT_LINES = 30;
+const MAX_OUTPUT_LINES = 500;
 
 type ChangeCallback = (scopeId: string, status: SessionStatus) => void;
 
