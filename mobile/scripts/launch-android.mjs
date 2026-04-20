@@ -86,8 +86,8 @@ async function main() {
     process.env.PATH || "",
   ].join(pathSep);
 
-  console.log(`Starting Expo with ANDROID_SERIAL=${SERIAL} ...`);
-  const expo = spawn("npx", ["expo", "start", "--android", "--device", SERIAL], {
+  console.log(`Starting Expo with ANDROID_SERIAL=${SERIAL} (forces emulator target, ignores Quest) ...`);
+  const expo = spawn("npx", ["expo", "start", "--android"], {
     stdio: "inherit",
     shell: true,
     env: { ...process.env, ANDROID_SERIAL: SERIAL, ANDROID_HOME: SDK, PATH: augmentedPath },
