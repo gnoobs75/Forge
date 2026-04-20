@@ -1,23 +1,51 @@
 #!/usr/bin/env node
-import { spawn, execSync } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
 
 const SERIAL = "emulator-5554";
 const BOOT_TIMEOUT_S = 180;
 
-function sh(cmd) {
+function findAndroidSdk() {
+  const candidates = [
+    process.env.ANDROID_HOME,
+    process.env.ANDROID_SDK_ROOT,
+    process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "Android", "Sdk"),
+    path.join(os.homedir(), "Android", "Sdk"),
+    path.join(os.homedir(), "Library", "Android", "sdk"),
+  ].filter(Boolean);
+  for (const c of candidates) {
+    if (fs.existsSync(path.join(c, "platform-tools"))) return c;
+  }
+  return null;
+}
+
+const SDK = findAndroidSdk();
+if (!SDK) {
+  console.error("Android SDK not found. Set ANDROID_HOME or install via Android Studio.");
+  process.exit(1);
+}
+console.log(`Using Android SDK at: ${SDK}`);
+
+const winExe = process.platform === "win32" ? ".exe" : "";
+const ADB = path.join(SDK, "platform-tools", `adb${winExe}`);
+const EMULATOR = path.join(SDK, "emulator", `emulator${winExe}`);
+
+function runCapture(bin, args) {
   try {
-    return execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return execFileSync(bin, args, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
   } catch {
     return "";
   }
 }
 
 function emulatorOnline() {
-  return /emulator-5554\s+device/.test(sh("adb devices"));
+  return /emulator-5554\s+device/.test(runCapture(ADB, ["devices"]));
 }
 
 function emulatorBooted() {
-  return sh(`adb -s ${SERIAL} shell getprop sys.boot_completed`) === "1";
+  return runCapture(ADB, ["-s", SERIAL, "shell", "getprop", "sys.boot_completed"]) === "1";
 }
 
 async function waitForBoot() {
@@ -31,40 +59,38 @@ async function waitForBoot() {
 }
 
 async function main() {
-  if (!sh("adb version")) {
-    console.error("adb not found in PATH. Add %LOCALAPPDATA%\\Android\\Sdk\\platform-tools to PATH.");
-    process.exit(1);
-  }
-
   if (emulatorOnline() && emulatorBooted()) {
-    console.log(`${SERIAL} already running — skipping boot.`);
+    console.log(`${SERIAL} already running \u2014 skipping boot.`);
   } else {
-    if (!sh("emulator -version")) {
-      console.error("emulator not found in PATH. Add %LOCALAPPDATA%\\Android\\Sdk\\emulator to PATH.");
-      process.exit(1);
-    }
-    const avdList = sh("emulator -list-avds");
+    const avdList = runCapture(EMULATOR, ["-list-avds"]);
     if (!avdList) {
       console.error("\nNo AVDs configured. Open Android Studio \u2192 Device Manager \u2192 Create Device.");
       process.exit(1);
     }
     const avd = avdList.split(/\r?\n/)[0].trim();
     console.log(`Booting AVD '${avd}' on ${SERIAL}...`);
-    spawn("emulator", ["-avd", avd], { detached: true, stdio: "ignore", shell: true }).unref();
+    spawn(EMULATOR, ["-avd", avd], { detached: true, stdio: "ignore" }).unref();
     process.stdout.write("Waiting for emulator");
     const ok = await waitForBoot();
     if (!ok) {
-      console.error("\nEmulator didn't boot within 3 minutes. Check Android Studio.");
+      console.error("\nEmulator didn't boot within 3 minutes. Check Android Studio for errors.");
       process.exit(1);
     }
     console.log(" ready.");
   }
 
+  const pathSep = process.platform === "win32" ? ";" : ":";
+  const augmentedPath = [
+    path.join(SDK, "platform-tools"),
+    path.join(SDK, "emulator"),
+    process.env.PATH || "",
+  ].join(pathSep);
+
   console.log(`Starting Expo with ANDROID_SERIAL=${SERIAL} ...`);
   const expo = spawn("npx", ["expo", "start", "--android", "--device", SERIAL], {
     stdio: "inherit",
     shell: true,
-    env: { ...process.env, ANDROID_SERIAL: SERIAL },
+    env: { ...process.env, ANDROID_SERIAL: SERIAL, ANDROID_HOME: SDK, PATH: augmentedPath },
   });
   expo.on("exit", (code) => process.exit(code ?? 0));
 }
