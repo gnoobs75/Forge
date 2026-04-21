@@ -18,6 +18,7 @@ import IdeaBoard from './IdeaBoard';
 import ProjectDocs from './ProjectDocs';
 import ProjectTools from './ProjectTools';
 import ProjectApiSpecs from './ProjectApiSpecs';
+import ProjectMcpTools from './ProjectMcpTools';
 import ProjectBugs, { getOpenBugCount } from './ProjectBugs';
 
 const PHASE_LIST = [
@@ -115,12 +116,24 @@ export default function ProjectDetail({ slug }) {
   const [showProgressDetail, setShowProgressDetail] = useState(false);
   const [activeGameTab, setActiveGameTab] = useState('overview');
   const [openBugCount, setOpenBugCount] = useState(0);
+  const [specsKind, setSpecsKind] = useState('api'); // 'mcp' | 'api' — drives tab label + component
   const archiveProject = useStore((s) => s.archiveProject);
 
   // Load open bug count for tab badge
   React.useEffect(() => {
     getOpenBugCount(slug).then(setOpenBugCount);
   }, [slug, activeGameTab]);
+
+  // Detect whether this project has an MCP catalog; fall back to API specs otherwise.
+  React.useEffect(() => {
+    if (!window.electronAPI?.hq) return;
+    let cancelled = false;
+    window.electronAPI.hq.readFile(`projects/${slug}/mcp/index.json`).then((res) => {
+      if (cancelled) return;
+      setSpecsKind(res?.ok ? 'mcp' : 'api');
+    });
+    return () => { cancelled = true; };
+  }, [slug]);
 
   if (!project) return null;
 
@@ -269,7 +282,15 @@ export default function ProjectDetail({ slug }) {
 
       {/* Tab Navigation */}
       <DraggableTabBar
-        tabs={GAME_TABS.map(t => t.id === 'bugs' && openBugCount > 0 ? { ...t, badge: openBugCount } : t)}
+        tabs={GAME_TABS.map(t => {
+          if (t.id === 'specs') {
+            return specsKind === 'mcp'
+              ? { ...t, label: 'MCP', icon: '\uD83E\uDDE0' }
+              : { ...t, label: 'API', icon: '\uD83D\uDD0C' };
+          }
+          if (t.id === 'bugs' && openBugCount > 0) return { ...t, badge: openBugCount };
+          return t;
+        })}
         activeTab={activeGameTab}
         onTabClick={(id) => { setActiveGameTab(id); playSound('tab'); }}
         storageKey="game-tab-order"
@@ -299,8 +320,10 @@ export default function ProjectDetail({ slug }) {
         {activeGameTab === 'ideas' && (
           <IdeaBoard projectFilter={slug} />
         )}
-        {activeGameTab === 'api' && (
-          <ProjectApiSpecs slug={slug} />
+        {activeGameTab === 'specs' && (
+          specsKind === 'mcp'
+            ? <ProjectMcpTools slug={slug} />
+            : <ProjectApiSpecs slug={slug} />
         )}
         {activeGameTab === 'integrations' && (
           <div className="card text-center py-12">
@@ -325,7 +348,7 @@ const GAME_TABS = [
   { id: 'features', label: 'Features', icon: '\u2726' },
   { id: 'bugs', label: 'Bugs', icon: '\uD83D\uDC1B' },
   { id: 'ideas', label: 'Ideas', icon: '\uD83D\uDCA1' },
-  { id: 'api', label: 'API', icon: '\uD83D\uDD0C' },
+  { id: 'specs', label: 'API', icon: '\uD83D\uDD0C' }, // label/icon swap to MCP when project has mcp/index.json
   { id: 'integrations', label: 'Integrations', icon: '\uD83D\uDD17' },
   { id: 'tools', label: 'Project Tools', icon: '\uD83D\uDD27' },
   { id: 'docs', label: 'Docs', icon: '\uD83D\uDCC4' },
