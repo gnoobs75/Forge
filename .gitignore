@@ -35,8 +35,10 @@ task-queue.json
 .DS_Store
 Thumbs.db
 
-# Editor
-.vscode/
+# Editor — ignore personal settings, track shared config
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
 .idea/
 *.swp
 *.swo
