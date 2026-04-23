@@ -8,7 +8,7 @@ echo Node is required but not installed.
 where winget >nul 2>&1
 if errorlevel 1 goto :node_manual
 
-set /p REPLY=Install Node 20 LTS via winget? [y/N]
+set /p REPLY=Install Node 20 LTS via winget? [y/N] 
 if /i "%REPLY%"=="y" goto :winget_install
 goto :node_manual
 
