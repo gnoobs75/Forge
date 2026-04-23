@@ -1,5 +1,13 @@
 # The Forge
 
+## Quick start
+
+- **Double-click:** `Launch Forge.command` (Mac) or `Launch Forge.bat` (Windows)
+- **CLI:** `npm run setup && npm run dev`
+- **VS Code:** `Cmd+Shift+P` → `Run Task` → `Forge: First Run`
+
+Requires Node 20+. The first run will prompt to install missing prereqs (Bun, and on Mac, Xcode Command Line Tools).
+
 A Software Development Studio OS — Electron dashboard + integrated terminals + dual-brain AI assistant (Grok + Claude) + a Council of specialist agents for reviewing and shaping your codebase.
 
 ## What you get
