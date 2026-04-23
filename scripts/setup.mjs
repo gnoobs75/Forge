@@ -145,14 +145,24 @@ function needsInstall(dir) {
   const nodeModules = join(dir, "node_modules");
   if (!existsSync(nodeModules)) return true;
 
-  const lockFiles = ["package-lock.json", "bun.lock", "bun.lockb"]
+  // npm writes node_modules/.package-lock.json only on an actual install.
+  // A no-op `npm install` bumps package-lock.json's mtime without updating
+  // node_modules/, so compare against the internal marker instead.
+  const npmLock = join(dir, "package-lock.json");
+  const npmMarker = join(nodeModules, ".package-lock.json");
+  if (existsSync(npmLock) && existsSync(npmMarker)) {
+    return statSync(npmLock).mtimeMs > statSync(npmMarker).mtimeMs;
+  }
+
+  // Bun has no analogous marker, but it does touch node_modules/ on install,
+  // so the directory mtime is a reliable comparison point.
+  const bunLocks = ["bun.lock", "bun.lockb"]
     .map((f) => join(dir, f))
     .filter(existsSync);
-
-  if (lockFiles.length === 0) return false;
+  if (bunLocks.length === 0) return false;
 
   const nmTime = statSync(nodeModules).mtimeMs;
-  return lockFiles.some((lock) => statSync(lock).mtimeMs > nmTime);
+  return bunLocks.some((lock) => statSync(lock).mtimeMs > nmTime);
 }
 
 function installRoot() {
