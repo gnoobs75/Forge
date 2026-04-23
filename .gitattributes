@@ -1,0 +1,8 @@
+# Enforce LF for shell scripts (CRLF breaks shebang on macOS)
+*.command  text eol=lf
+*.sh       text eol=lf
+*.mjs      text eol=lf
+
+# Windows batch files — CRLF preferred
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
