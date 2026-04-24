@@ -133,4 +133,434 @@
   .progress-glow:hover {
     box-shadow: 0 0 12px rgba(197, 38, 56, 0.15), 0 0 24px rgba(197, 38, 56, 0.08);
   }
+
+  /* ─── Whammy overlay (Press Your Luck homage — Claude thinking indicator) ── */
+  .whammy-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .whammy {
+    position: absolute;
+    left: -100px;
+    width: 72px;
+    height: 72px;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.55));
+    will-change: transform;
+  }
+
+  .whammy-bounce {
+    width: 100%;
+    height: 100%;
+    animation: whammy-bounce 260ms ease-in-out infinite alternate;
+    position: relative;
+  }
+
+  .whammy-shout {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "Impact", "Arial Black", sans-serif;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    color: #ffd23b;
+    text-shadow:
+      2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000,
+      0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000,
+      0 0 10px rgba(255, 210, 59, 0.7);
+    white-space: nowrap;
+    animation: whammy-shout-wobble 180ms ease-in-out infinite alternate;
+  }
+
+  /* When parent whammy is flipped for right-to-left runs, un-flip the shout so
+     the text stays readable. Inline style on .whammy holds scaleX(-1). */
+  .whammy[style*="scaleX(-1)"] .whammy-shout {
+    animation-name: whammy-shout-wobble-flipped;
+  }
+  @keyframes whammy-shout-wobble-flipped {
+    0%   { transform: translateX(-50%) scaleX(-1) rotate(-6deg) scale(1); }
+    100% { transform: translateX(-50%) scaleX(-1) rotate(6deg) scale(1.08); }
+  }
+
+  @keyframes whammy-run {
+    0%   { left: -100px; }
+    100% { left: calc(100% + 100px); }
+  }
+
+  @keyframes whammy-bounce {
+    0%   { transform: translateY(0) rotate(-4deg); }
+    100% { transform: translateY(-10px) rotate(4deg); }
+  }
+
+  @keyframes whammy-shout-wobble {
+    0%   { transform: translateX(-50%) rotate(-6deg) scale(1); }
+    100% { transform: translateX(-50%) rotate(6deg) scale(1.08); }
+  }
+
+  /* Spinning propeller hat */
+  .whammy-propeller {
+    animation: whammy-prop-spin 140ms linear infinite;
+    transform-box: fill-box;
+  }
+  @keyframes whammy-prop-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  /* Mid-meet collision bubble (pops at the midpoint of a skit) */
+  .whammy-bubble {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 38px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+    animation: whammy-bubble-pop 1600ms ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes whammy-bubble-pop {
+    0%   { opacity: 0; transform: translateX(-50%) scale(0.2); }
+    30%  { opacity: 0; transform: translateX(-50%) scale(0.2); }
+    45%  { opacity: 1; transform: translateX(-50%) scale(1.4) rotate(-8deg); }
+    55%  { opacity: 1; transform: translateX(-50%) scale(1.1) rotate(6deg); }
+    75%  { opacity: 1; transform: translateX(-50%) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translateX(-50%) scale(0.8) translateY(-20px); }
+  }
+
+  /* ─── Tribes 2: Raiders — ski arcs, projectiles, impact effects ─── */
+
+  /* Base container for a tribes warrior. Size driven by CSS var. */
+  .whammy-tribes {
+    position: absolute;
+    width: var(--raider-size, 34px);
+    height: calc(var(--raider-size, 34px) * 1.15);
+    left: 0;
+    top: 0;
+    filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6));
+    offset-rotate: auto 0deg;
+    will-change: offset-distance, transform;
+  }
+
+  .whammy-tribes-ski {
+    animation-name: whammy-ski-arc;
+    animation-timing-function: cubic-bezier(.45, .05, .55, .95);
+    animation-fill-mode: forwards;
+  }
+  @keyframes whammy-ski-arc {
+    0%   { offset-distance: 0%; }
+    100% { offset-distance: 100%; }
+  }
+
+  .whammy-jetpack-flame {
+    transform-box: fill-box;
+    transform-origin: center top;
+    animation: whammy-flame-burst 1400ms ease-in-out infinite;
+  }
+  @keyframes whammy-flame-burst {
+    0%, 100% { transform: scaleY(0.65) scaleX(0.9); opacity: 0.75; }
+    25%, 75% { transform: scaleY(1.4)  scaleX(1.1); opacity: 1.0; }
+    50%      { transform: scaleY(0.8)  scaleX(0.95); opacity: 0.85; }
+  }
+
+  .whammy-flag-trail {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: whammy-flag-wave 900ms ease-in-out infinite alternate;
+  }
+  @keyframes whammy-flag-wave {
+    0%   { transform: skewX(-6deg) scaleX(0.95); }
+    100% { transform: skewX(6deg)  scaleX(1.05); }
+  }
+
+  .whammy-skiing { /* intentionally empty */ }
+
+  /* ─── Projectiles ─── */
+
+  .whammy-disc {
+    position: absolute;
+    left: 0; top: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #bae6fd 35%, #38bdf8 65%, #0ea5e9 100%);
+    box-shadow: 0 0 6px #38bdf8, 0 0 12px rgba(56, 189, 248, 0.5);
+    offset-rotate: 0deg;
+    animation-name: whammy-ski-arc;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    will-change: offset-distance;
+  }
+  .whammy-disc::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: radial-gradient(circle, transparent 30%, rgba(56,189,248,0.6) 70%);
+    animation: whammy-disc-spin 200ms linear infinite;
+  }
+  @keyframes whammy-disc-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .whammy-mortar-ball {
+    position: absolute;
+    left: 0; top: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #ffffff 0%, #bbf7d0 20%, #22c55e 55%, #14532d 100%);
+    box-shadow: 0 0 10px #22c55e, 0 0 20px rgba(34, 197, 94, 0.6), 0 0 30px rgba(34, 197, 94, 0.3);
+    offset-rotate: 0deg;
+    animation-name: whammy-mortar-lob;
+    animation-timing-function: cubic-bezier(.35, 0, .65, 1);
+    animation-fill-mode: forwards;
+    will-change: offset-distance;
+  }
+  @keyframes whammy-mortar-lob {
+    0%   { offset-distance: 0%; }
+    100% { offset-distance: 100%; }
+  }
+  .whammy-mortar-ball-trail {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.35) 20%, transparent 70%);
+    filter: blur(3px);
+    animation: whammy-mortar-trail-pulse 120ms ease-in-out infinite alternate;
+  }
+  @keyframes whammy-mortar-trail-pulse {
+    from { opacity: 0.6; transform: scale(0.9); }
+    to   { opacity: 1.0; transform: scale(1.2); }
+  }
+
+  /* ─── Impact overlays ─── */
+
+  .whammy-impact {
+    position: absolute;
+    pointer-events: none;
+    transition: opacity 600ms ease-out;
+  }
+  .whammy-impact.healing {
+    opacity: 0;
+  }
+
+  .whammy-hole {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #000 35%, #1a1a1f 55%, transparent 72%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.08), inset 0 0 4px rgba(0,0,0,0.9);
+  }
+  .whammy-hole::after {
+    content: '';
+    position: absolute; inset: -5px;
+    background:
+      linear-gradient(0deg, transparent 48%, rgba(0,0,0,0.4) 49%, rgba(0,0,0,0.4) 51%, transparent 52%),
+      linear-gradient(90deg, transparent 48%, rgba(0,0,0,0.4) 49%, rgba(0,0,0,0.4) 51%, transparent 52%);
+    mask: radial-gradient(circle, black 4px, transparent 10px);
+    -webkit-mask: radial-gradient(circle, black 4px, transparent 10px);
+  }
+
+  .whammy-fusion-core {
+    position: absolute;
+    width: 44px; height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center,
+      #ffffff 4%, #bae6fd 15%, #38bdf8 30%,
+      rgba(14, 165, 233, 0.6) 50%, transparent 80%);
+    mix-blend-mode: screen;
+    filter: blur(0.4px);
+    animation: whammy-fusion-pulse 400ms ease-out forwards;
+  }
+  @keyframes whammy-fusion-pulse {
+    0%   { transform: scale(0.2); opacity: 0; }
+    30%  { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1.0); opacity: 0.8; }
+  }
+  .whammy-fusion-ring {
+    position: absolute;
+    width: 56px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(56, 189, 248, 0.7);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5), inset 0 0 8px rgba(186, 230, 253, 0.25);
+    animation: whammy-fusion-ring-expand 500ms ease-out forwards;
+  }
+  @keyframes whammy-fusion-ring-expand {
+    0%   { transform: scale(0.3); opacity: 0; }
+    40%  { transform: scale(1.0); opacity: 1; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+
+  .whammy-char-vapor {
+    position: absolute;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 13px;
+    color: #bae6fd;
+    text-shadow: 0 0 4px #38bdf8, 0 0 10px #0ea5e9;
+    animation: whammy-vaporize 900ms ease-out forwards;
+    white-space: pre;
+  }
+  @keyframes whammy-vaporize {
+    0%   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    40%  { opacity: 0.7; transform: translateY(-6px) scale(1.1); filter: blur(0.5px); }
+    100% { opacity: 0; transform: translateY(-24px) scale(0.6); filter: blur(2px); }
+  }
+
+  .whammy-vapor-mist {
+    position: absolute;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(186,230,253,0.5) 0%, rgba(56,189,248,0.25) 40%, transparent 75%);
+    filter: blur(3px);
+    animation: whammy-mist-rise 1800ms ease-out forwards;
+  }
+  @keyframes whammy-mist-rise {
+    0%   { opacity: 0; transform: translateY(0) scale(0.6); }
+    20%  { opacity: 0.8; }
+    100% { opacity: 0; transform: translateY(-40px) scale(1.6); }
+  }
+
+  .whammy-char-melt {
+    position: absolute;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 13px;
+    color: #38bdf8;
+    text-shadow: 0 0 6px #0ea5e9;
+    transform-origin: top center;
+    animation: whammy-melt-drip 1200ms ease-in forwards;
+    white-space: pre;
+  }
+  @keyframes whammy-melt-drip {
+    0%   { transform: scaleY(1); color: #e2e8f0; }
+    25%  { transform: scaleY(1.6); color: #38bdf8; }
+    60%  { transform: scaleY(2.8) translateY(4px); color: #0ea5e9; }
+    100% { transform: scaleY(3.8) translateY(12px); color: #0c4a6e; opacity: 0.5; }
+  }
+
+  .whammy-mortar-flash {
+    position: absolute;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      #ffffff 0%, #d9f99d 8%, #86efac 22%, rgba(34,197,94,0.9) 38%,
+      rgba(16,94,48,0.7) 55%, rgba(0,0,0,0.9) 72%, transparent 88%);
+    mix-blend-mode: screen;
+    filter: blur(0.5px);
+    animation: whammy-mortar-flash 600ms ease-out forwards;
+    transform-origin: center;
+  }
+  @keyframes whammy-mortar-flash {
+    0%   { transform: scale(0.2); opacity: 0; }
+    20%  { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1.0); opacity: 0.4; }
+  }
+  .whammy-mortar-shockwave {
+    position: absolute;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    border: 2px solid rgba(134,239,172,0.6);
+    box-shadow: 0 0 20px rgba(34,197,94,0.4), inset 0 0 20px rgba(34,197,94,0.3);
+    animation: whammy-shockwave-expand 800ms ease-out forwards;
+  }
+  @keyframes whammy-shockwave-expand {
+    0%   { transform: scale(0.1); opacity: 0; }
+    30%  { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+  .whammy-mortar-crater {
+    position: absolute;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      #000 25%, #0a1a0a 45%, rgba(20,83,45,0.7) 62%,
+      rgba(34,197,94,0.2) 78%, transparent 92%);
+    box-shadow: inset 0 0 20px rgba(34,197,94,0.5);
+  }
+  .whammy-mortar-smoke {
+    position: absolute;
+    width: 36px; height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(52,211,153,0.45) 0%,
+      rgba(34,197,94,0.3) 35%, rgba(20,83,45,0.15) 60%, transparent 85%);
+    filter: blur(4px);
+    animation: whammy-smoke-rise 3200ms ease-out infinite;
+  }
+  @keyframes whammy-smoke-rise {
+    0%   { opacity: 0; transform: translateY(20px) scale(0.5); }
+    20%  { opacity: 0.7; }
+    100% { opacity: 0; transform: translateY(-80px) scale(1.8); }
+  }
+  .whammy-mortar-particle {
+    position: absolute;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 13px;
+    color: #e2e8f0;
+    white-space: pre;
+    text-shadow: 0 0 4px rgba(34,197,94,0.6);
+    --blast-tx: 0px;
+    --blast-ty: 0px;
+    --blast-rot: 0deg;
+    animation: whammy-mortar-blast 900ms cubic-bezier(.2,.6,.35,1) forwards;
+  }
+  @keyframes whammy-mortar-blast {
+    0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(var(--blast-tx), var(--blast-ty)) rotate(var(--blast-rot)); opacity: 0.85; }
+  }
+  .whammy-mortar-spark {
+    position: absolute;
+    width: 2px; height: 2px;
+    border-radius: 50%;
+    background: #bbf7d0;
+    box-shadow: 0 0 6px #22c55e, 0 0 12px #22c55e;
+    animation: whammy-spark-fade 700ms ease-out forwards;
+  }
+  @keyframes whammy-spark-fade {
+    0%   { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.3); }
+  }
+
+  /* ─── Whammy Studio (tab) ─── */
+  .whammy-studio-stage {
+    position: relative;
+    height: 240px;
+    background: linear-gradient(180deg, #0f0f13 0%, #18181C 100%);
+    overflow: hidden;
+    border-top: 1px dashed rgba(197,38,56,0.2);
+    border-bottom: 1px dashed rgba(197,38,56,0.2);
+  }
+
+  /* Focused variant preview — four animation modes */
+  .whammy-focus {
+    display: inline-block;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.55));
+  }
+  .whammy-focus-idle    { animation: whammy-focus-idle 460ms ease-in-out infinite alternate; }
+  .whammy-focus-run     { animation: whammy-focus-run 600ms ease-in-out infinite alternate; }
+  .whammy-focus-dance   { animation: whammy-focus-dance 800ms ease-in-out infinite; }
+  .whammy-focus-spin    { animation: whammy-focus-spin 1400ms linear infinite; }
+
+  @keyframes whammy-focus-idle {
+    0%   { transform: translateY(0) rotate(-3deg); }
+    100% { transform: translateY(-12px) rotate(3deg); }
+  }
+  @keyframes whammy-focus-run {
+    0%   { transform: translate(-8px, 0) rotate(-6deg); }
+    100% { transform: translate(8px, -10px) rotate(6deg); }
+  }
+  @keyframes whammy-focus-dance {
+    0%   { transform: translateX(-16px) rotate(-10deg) scaleX(1); }
+    25%  { transform: translateX(0) rotate(0deg) scaleX(-1); }
+    50%  { transform: translateX(16px) rotate(10deg) scaleX(-1); }
+    75%  { transform: translateX(0) rotate(0deg) scaleX(1); }
+    100% { transform: translateX(-16px) rotate(-10deg) scaleX(1); }
+  }
+  @keyframes whammy-focus-spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 }
