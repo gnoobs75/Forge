@@ -6,6 +6,7 @@ import os from "node:os";
 
 const SERIAL = "emulator-5554";
 const BOOT_TIMEOUT_S = 180;
+const METRO_PORT = 8081;
 
 function findAndroidSdk() {
   const candidates = [
@@ -56,6 +57,38 @@ async function waitForBoot() {
     await new Promise((r) => setTimeout(r, 2000));
   }
   return false;
+}
+
+function killStaleMetro() {
+  // Kill any process LISTENING on Metro's port so a stale dev server doesn't
+  // refuse the new launch or serve a wedged bundle.
+  try {
+    if (process.platform === "win32") {
+      const out = execFileSync("netstat", ["-ano"], { stdio: ["ignore", "pipe", "ignore"] }).toString();
+      const pids = new Set();
+      for (const line of out.split(/\r?\n/)) {
+        const m = line.match(new RegExp(`:${METRO_PORT}\\s+\\S+\\s+LISTENING\\s+(\\d+)`));
+        if (m) pids.add(m[1]);
+      }
+      for (const pid of pids) {
+        try {
+          execFileSync("taskkill", ["/F", "/PID", pid], { stdio: "ignore" });
+          console.log(`Killed stale Metro process PID ${pid} on port ${METRO_PORT}.`);
+        } catch {}
+      }
+    } else {
+      const out = execFileSync("lsof", ["-ti", `:${METRO_PORT}`], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+      const pids = out.split(/\s+/).filter(Boolean);
+      for (const pid of pids) {
+        try {
+          execFileSync("kill", ["-9", pid], { stdio: "ignore" });
+          console.log(`Killed stale Metro process PID ${pid} on port ${METRO_PORT}.`);
+        } catch {}
+      }
+    }
+  } catch {
+    // No Metro running — nothing to kill, that's fine.
+  }
 }
 
 function listPhysicalDevices() {
@@ -116,8 +149,21 @@ async function main() {
     process.env.PATH || "",
   ].join(pathSep);
 
-  console.log(`Only emulator-5554 is attached. Starting Expo ...`);
-  const expo = spawn("npx", ["expo", "start", "--android"], {
+  killStaleMetro();
+
+  // Force adb reverse so the emulator can reach Metro on the host. Expo's CLI
+  // does this on first attach, but if the emulator was killed and re-booted
+  // while Metro stayed alive, the mapping is stale and the dev client just
+  // shows "downloading..." forever.
+  try {
+    execFileSync(ADB, ["-s", SERIAL, "reverse", "tcp:8081", "tcp:8081"], { stdio: "ignore" });
+    console.log(`adb reverse tcp:8081 set on ${SERIAL}.`);
+  } catch {
+    console.warn(`adb reverse failed — emulator may not be ready yet.`);
+  }
+
+  console.log(`Only emulator-5554 is attached. Starting Expo (cache cleared) ...`);
+  const expo = spawn("npx", ["expo", "start", "--android", "--clear"], {
     stdio: "inherit",
     shell: true,
     env: { ...process.env, ANDROID_SERIAL: SERIAL, ANDROID_HOME: SDK, PATH: augmentedPath },

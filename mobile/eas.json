@@ -1,25 +1,35 @@
 {
   "cli": {
-    "version": ">= 5.0.0"
+    "version": ">= 13.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "deploymentTarget": "15.1"
+      }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "",
-        "ascAppId": "",
-        "appleTeamId": ""
+        "appleId": "REPLACE_WITH_APPLE_DEVELOPER_EMAIL",
+        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_NUMERIC_APP_ID",
+        "appleTeamId": "REPLACE_WITH_10_CHAR_TEAM_ID"
       }
     }
   }
