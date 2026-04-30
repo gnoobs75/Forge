@@ -115,6 +115,114 @@ export const useStore = create((set, get) => ({
   stewardStatus: null,
   setStewardStatus: (status) => set({ stewardStatus: status || null }),
 
+  // Daily reports — flat list of {project, title, summary, body, ...} loaded
+  // from hq-data/projects/<slug>/daily-reports/*.json. Populated by
+  // loadDailyReports() below; surfaced via DailyReportsPanel and
+  // LatestDailyReportsStrip.
+  dailyReports: [],
+
+  // Recommendation loader warnings — surfaces malformed rec / daily-report
+  // files that get dropped during loaders. Capped at 50 most-recent entries.
+  loaderWarnings: [],
+  addLoaderWarning: (warning) => {
+    set(state => {
+      const filtered = state.loaderWarnings.filter(w => w.file !== warning.file);
+      const next = [warning, ...filtered].slice(0, 50);
+      return { loaderWarnings: next };
+    });
+  },
+  dismissLoaderWarning: (file) => {
+    set(state => ({
+      loaderWarnings: state.loaderWarnings.filter(w => w.file !== file),
+    }));
+  },
+  clearLoaderWarnings: () => set({ loaderWarnings: [] }),
+
+  // Loader for hq-data/projects/<slug>/daily-reports/*.json. Validates the
+  // required {agent, agentColor, project, timestamp, type:'daily-report',
+  // title, summary, body} schema and reports drops via loaderWarnings.
+  loadDailyReports: async () => {
+    if (!window.electronAPI?.hq) return;
+    try {
+      const projectsDir = await window.electronAPI.hq.readDir('projects');
+      if (!projectsDir.ok) return;
+
+      const allReports = [];
+      const newWarnings = [];
+
+      const validateReport = (rep) => {
+        const missing = [];
+        if (rep.type !== 'daily-report') missing.push('type (must be "daily-report")');
+        if (!rep.agent) missing.push('agent');
+        if (!rep.agentColor) missing.push('agentColor');
+        if (!rep.project) missing.push('project');
+        if (!rep.timestamp) missing.push('timestamp');
+        if (!rep.title) missing.push('title');
+        if (!rep.summary) missing.push('summary');
+        if (!rep.body) missing.push('body');
+        return missing;
+      };
+
+      for (const entry of projectsDir.data) {
+        if (!entry.isDirectory) continue;
+        const reportsDir = await window.electronAPI.hq.readDir(
+          `projects/${entry.name}/daily-reports`
+        );
+        if (!reportsDir.ok) continue;
+
+        for (const repFile of reportsDir.data) {
+          if (!repFile.name.endsWith('.json')) continue;
+          const relPath = `projects/${entry.name}/daily-reports/${repFile.name}`;
+          const repData = await window.electronAPI.hq.readFile(relPath);
+          if (!repData.ok) continue;
+
+          let rep;
+          try {
+            rep = JSON.parse(repData.data);
+          } catch (e) {
+            newWarnings.push({
+              file: relPath,
+              kind: 'daily-report',
+              missing: ['valid JSON (parse error: ' + (e.message || 'unknown') + ')'],
+              timestamp: new Date().toISOString(),
+            });
+            console.warn('[loadDailyReports] Malformed JSON:', relPath, e.message);
+            continue;
+          }
+
+          const missing = validateReport(rep);
+          if (missing.length > 0) {
+            newWarnings.push({
+              file: relPath,
+              kind: 'daily-report',
+              missing,
+              timestamp: new Date().toISOString(),
+            });
+            console.warn('[loadDailyReports] Dropping report — missing required fields:', relPath, missing.join(', '));
+            continue;
+          }
+
+          rep._filePath = relPath;
+          if (!rep.project) rep.project = entry.name;
+          allReports.push(rep);
+        }
+      }
+
+      // Newest first
+      allReports.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+      set(state => {
+        const existing = state.loaderWarnings.filter(
+          w => !newWarnings.some(nw => nw.file === w.file)
+        );
+        const merged = [...newWarnings, ...existing].slice(0, 50);
+        return { dailyReports: allReports, loaderWarnings: merged };
+      });
+    } catch (err) {
+      console.warn('Could not load daily reports:', err);
+    }
+  },
+
   // Automation
   automationSchedules: loadPersistedData('forge-schedules', []),
   agentChains: loadPersistedData('forge-chains', []),
