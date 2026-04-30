@@ -30,6 +30,28 @@ export default function App() {
     return () => { if (unsubscribe) unsubscribe(); };
   }, []);
 
+  // Mirror the Studio Steward status feed into the store so JeevesNotes,
+  // ActivityFeed, and StudioTimeline can read recentActions from a single
+  // slice. Mirrors the sessionTabs.onUpdate pattern: fire getStatus() once
+  // for instant first paint, then subscribe to the 30s heartbeat.
+  useEffect(() => {
+    const api = window.electronAPI?.steward;
+    if (!api?.onStatus) return;
+    let cancelled = false;
+    if (typeof api.getStatus === 'function') {
+      Promise.resolve(api.getStatus())
+        .then((s) => { if (!cancelled && s) useStore.getState().setStewardStatus(s); })
+        .catch(() => {});
+    }
+    const unsubscribe = api.onStatus((s) => {
+      if (!cancelled) useStore.getState().setStewardStatus(s);
+    });
+    return () => {
+      cancelled = true;
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, []);
+
   const terminalScope = useMemo(() => {
     if (!activeProject) {
       return { id: 'studio', label: 'Studio Terminal' };

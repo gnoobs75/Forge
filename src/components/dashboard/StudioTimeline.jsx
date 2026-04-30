@@ -1,6 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
+import { jeevesNarrate } from '../../utils/jeevesNarrate';
+
+const JEEVES_COLOR = '#A78BFA';
+const EMPTY_ACTIONS = [];
 
 const DATE_GROUPS = (entries) => {
   const groups = {};
@@ -18,10 +22,11 @@ export default function StudioTimeline() {
   const recommendations = useStore((s) => s.recommendations);
   const agents = useStore((s) => s.agents);
   const projects = useStore((s) => s.projects);
+  const stewardActions = useStore((s) => s.stewardStatus?.recentActions ?? EMPTY_ACTIONS);
 
   const [filterAgent, setFilterAgent] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
-  const [filterType, setFilterType] = useState('all'); // 'all' | 'activity' | 'recommendation' | 'implementation'
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'activity' | 'recommendation' | 'implementation' | 'maintenance'
 
   // Merge activities and recommendation events into unified timeline
   const timelineEntries = useMemo(() => {
@@ -84,10 +89,29 @@ export default function StudioTimeline() {
       }
     }
 
+    // Add Studio Steward maintenance entries — Jeeves' actions appear in the
+    // unified timeline alongside agent activity and recommendation events.
+    for (const a of stewardActions) {
+      if (!a?.task_id) continue;
+      const n = jeevesNarrate(a);
+      entries.push({
+        id: `steward-${a.task_id}`,
+        type: 'maintenance',
+        agent: 'Jeeves',
+        agentColor: JEEVES_COLOR,
+        title: n.headline,
+        summary: n.why,
+        project: projects.find(p => p.slug === a.project)?.name || a.project || '',
+        timestamp: n.when || a.completed_at || a.started_at || null,
+        ruleId: n.ruleId,
+        outcome: n.outcome,
+      });
+    }
+
     // Sort descending
     entries.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
     return entries;
-  }, [activityLog, recommendations, projects]);
+  }, [activityLog, recommendations, projects, stewardActions]);
 
   // Apply filters
   const filtered = useMemo(() => {
@@ -128,7 +152,7 @@ export default function StudioTimeline() {
         </select>
 
         <div className="flex items-center gap-1">
-          {['all', 'activity', 'recommendation', 'implementation'].map(t => (
+          {['all', 'activity', 'recommendation', 'implementation', 'maintenance'].map(t => (
             <button
               key={t}
               onClick={() => setFilterType(t)}

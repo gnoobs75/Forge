@@ -31,7 +31,20 @@ const AGENTS = [
   { id: 'project-manager', name: 'Project Manager', color: '#3B82F6', icon: 'timeline', role: 'Timeline, dependencies, risk management, reporting' },
   { id: 'code-reviewer', name: 'Code Reviewer', color: '#D4A574', icon: 'magnifier', role: 'PR reviews, code quality, conventions, tech debt' },
   { id: 'ai-integration-analyst', name: 'AI Integration Analyst', color: '#A855F7', icon: 'brain', role: 'PRD analysis, AI/LLM opportunity identification, agentic workflow design' },
+  // System agent — represents the Studio Steward daemon. Not a peer advisor;
+  // surfaces in Council/Activity/Timeline as a distinct "Studio Operations"
+  // entity so users can see what the Steward is doing without digging into
+  // HelpPanel.
+  { id: 'jeeves', name: 'Jeeves', color: '#A78BFA', icon: '\u{1FAB6}', role: 'Studio steward — quiet maintenance', kind: 'system' },
 ];
+
+// Advisor agents only — excludes the Jeeves system agent so callers iterating
+// "the council" (scoreboards, dispatchers, council chat) don't pick up the
+// steward by accident.
+export const ADVISOR_AGENTS = AGENTS.filter(a => a.kind !== 'system');
+
+// Function form for components that import the helper directly.
+export const getAdvisorAgents = () => ADVISOR_AGENTS;
 
 const DEFAULT_PROJECTS = [];
 
@@ -94,6 +107,13 @@ export const useStore = create((set, get) => ({
   // Populated on startup via window.electronAPI.sessionTabs.list() + onUpdate.
   claudeSessions: [],   // TabRecord[]
   setClaudeSessions: (tabs) => set({ claudeSessions: tabs }),
+
+  // Studio Steward — last status snapshot from window.electronAPI.steward.onStatus.
+  // App.jsx subscribes once on mount and pipes payloads in via setStewardStatus.
+  // recentActions (default limit 10) is the source of truth for Jeeves' Notes,
+  // ActivityFeed Jeeves group, and StudioTimeline maintenance entries.
+  stewardStatus: null,
+  setStewardStatus: (status) => set({ stewardStatus: status || null }),
 
   // Automation
   automationSchedules: loadPersistedData('forge-schedules', []),
