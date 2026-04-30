@@ -72,6 +72,69 @@ const loadPersistedData = (key, fallback) => {
   } catch { return fallback; }
 };
 
+// ─── Tile-mode terminal state ─────────────────────────────────────────────
+// pinnedSlots: { [slotNumber: 1-4]: tabId string }. Persisted at
+// "forge-pinned-slots". splitterRatios: per-layout {v, h} percentages
+// (10..90). tilePresets: [{id, name, slots, createdAt}].
+
+function validateSlots(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  const out = {};
+  for (const slot of [1, 2, 3, 4]) {
+    if (typeof raw[slot] === 'string') out[slot] = raw[slot];
+  }
+  return out;
+}
+
+export function __loadPinnedSlots() {
+  try {
+    const raw = localStorage.getItem('forge-pinned-slots');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return validateSlots(parsed);
+    }
+  } catch {}
+  return {};
+}
+
+export function __loadSplitterRatios() {
+  const out = { 2: { v: 50 }, 3: { v: 50, h: 50 }, 4: { v: 50, h: 50 } };
+  try {
+    const raw = localStorage.getItem('forge-splitter-ratios');
+    if (!raw) return out;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      for (const k of [2, 3, 4]) {
+        const entry = parsed[k];
+        if (entry && typeof entry === 'object') {
+          if (typeof entry.v === 'number') out[k].v = Math.max(10, Math.min(90, entry.v));
+          if (typeof entry.h === 'number') out[k].h = Math.max(10, Math.min(90, entry.h));
+        }
+      }
+    }
+  } catch {}
+  return out;
+}
+
+export function __loadTilePresets() {
+  try {
+    const raw = localStorage.getItem('forge-tile-presets');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.slots && typeof p.slots === 'object')
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        slots: p.slots,
+        createdAt: p.createdAt || new Date().toISOString(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
 function backfillRec(rec) {
   const patched = { ...rec };
   // Backfill implementable. Default is true — any rec can be planned/auto-implemented
@@ -100,6 +163,9 @@ export const useStore = create((set, get) => ({
   agentAvatars: loadPersistedAvatars(),
   agentAliases: loadPersistedAliases(),
   agentBrains: loadPersistedData('forge-agent-brains', {}),
+  pinnedSlots: __loadPinnedSlots(),
+  splitterRatios: __loadSplitterRatios(),
+  tilePresets: __loadTilePresets(),
   showNewProjectModal: false,
   implementationSessions: [],
 
@@ -118,6 +184,103 @@ export const useStore = create((set, get) => ({
     set({ activeKitId: id });
     try { localStorage.setItem('forge-whammy-kit', JSON.stringify(id)); } catch {}
   },
+
+  // === Pinned tile slots (global — independent of dashboard project scope) ===
+  togglePin: (tabId) => set((state) => {
+    const current = { ...state.pinnedSlots };
+    for (const slot of [1, 2, 3, 4]) {
+      if (current[slot] === tabId) {
+        delete current[slot];
+        try { localStorage.setItem('forge-pinned-slots', JSON.stringify(current)); } catch {}
+        return { pinnedSlots: current };
+      }
+    }
+    for (const slot of [1, 2, 3, 4]) {
+      if (!current[slot]) {
+        current[slot] = tabId;
+        try { localStorage.setItem('forge-pinned-slots', JSON.stringify(current)); } catch {}
+        return { pinnedSlots: current };
+      }
+    }
+    return state;
+  }),
+
+  unpinTab: (tabId) => set((state) => {
+    const current = { ...state.pinnedSlots };
+    let changed = false;
+    for (const slot of [1, 2, 3, 4]) {
+      if (current[slot] === tabId) {
+        delete current[slot];
+        changed = true;
+      }
+    }
+    if (!changed) return state;
+    try { localStorage.setItem('forge-pinned-slots', JSON.stringify(current)); } catch {}
+    return { pinnedSlots: current };
+  }),
+
+  clearPins: () => set(() => {
+    try { localStorage.setItem('forge-pinned-slots', JSON.stringify({})); } catch {}
+    return { pinnedSlots: {} };
+  }),
+
+  setPins: (slots) => set(() => {
+    const validated = validateSlots(slots);
+    try { localStorage.setItem('forge-pinned-slots', JSON.stringify(validated)); } catch {}
+    return { pinnedSlots: validated };
+  }),
+
+  pinTabToSlot: (tabId, slot) => set((state) => {
+    if (slot < 1 || slot > 4) return state;
+    const current = { ...state.pinnedSlots };
+    for (const s of [1, 2, 3, 4]) {
+      if (current[s] === tabId) delete current[s];
+    }
+    delete current[slot];
+    current[slot] = tabId;
+    try { localStorage.setItem('forge-pinned-slots', JSON.stringify(current)); } catch {}
+    return { pinnedSlots: current };
+  }),
+
+  // === Tile splitter ratios ===
+  setSplitterRatio: (layoutCount, axis, pct) => set((state) => {
+    if (![2, 3, 4].includes(layoutCount)) return state;
+    if (axis !== 'v' && axis !== 'h') return state;
+    const clamped = Math.max(10, Math.min(90, pct));
+    const next = {
+      ...state.splitterRatios,
+      [layoutCount]: { ...state.splitterRatios[layoutCount], [axis]: clamped },
+    };
+    try { localStorage.setItem('forge-splitter-ratios', JSON.stringify(next)); } catch {}
+    return { splitterRatios: next };
+  }),
+
+  // === Tile layout presets (scope-independent) ===
+  savePreset: (name, slots) => set((state) => {
+    const preset = {
+      id: 'preset-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      name,
+      slots: { ...slots },
+      createdAt: new Date().toISOString(),
+    };
+    const next = [...state.tilePresets, preset];
+    try { localStorage.setItem('forge-tile-presets', JSON.stringify(next)); } catch {}
+    return { tilePresets: next };
+  }),
+
+  deletePreset: (id) => set((state) => {
+    const next = state.tilePresets.filter(p => p.id !== id);
+    try { localStorage.setItem('forge-tile-presets', JSON.stringify(next)); } catch {}
+    return { tilePresets: next };
+  }),
+
+  applyPreset: (id) => set((state) => {
+    const preset = state.tilePresets.find(p => p.id === id);
+    if (!preset) return state;
+    const validated = validateSlots(preset.slots);
+    try { localStorage.setItem('forge-pinned-slots', JSON.stringify(validated)); } catch {}
+    return { pinnedSlots: validated };
+  }),
 
   // Persistent Claude CLI sessions (tracked by main-process SessionTracker).
   // Populated on startup via window.electronAPI.sessionTabs.list() + onUpdate.
