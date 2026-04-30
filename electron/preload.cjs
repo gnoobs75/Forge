@@ -235,5 +235,50 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('hq:file-changed', handler);
       return () => ipcRenderer.removeListener('hq:file-changed', handler);
     }
-  }
+  },
+
+  // Studio Steward — long-running daemon for end-to-end loop closure.
+  // status snapshots arrive via onStatus every 30s; control commands push
+  // back over invoke('steward:control', { action, ... }).
+  steward: {
+    getStatus: () => ipcRenderer.invoke('steward:get-status'),
+
+    // Per-project pause / global enable
+    pause: (project) => ipcRenderer.invoke('steward:control', { action: 'pause', project }),
+    resume: (project) => ipcRenderer.invoke('steward:control', { action: 'resume', project }),
+    enable: () => ipcRenderer.invoke('steward:control', { action: 'enable' }),
+    disable: () => ipcRenderer.invoke('steward:control', { action: 'disable' }),
+
+    // Phase 4 — task management + introspection
+    retryTask: (taskId) => ipcRenderer.invoke('steward:control', { action: 'retry-task', taskId }),
+    listRules: () => ipcRenderer.invoke('steward:control', { action: 'list-rules' }),
+    reload: () => ipcRenderer.invoke('steward:control', { action: 'reload' }),
+    enqueueTestTask: (project, body) => ipcRenderer.invoke('steward:control', { action: 'enqueue-test-task', project, body }),
+    seedPRD: (project) => ipcRenderer.invoke('steward:control', { action: 'seed-prd', project }),
+
+    // Generic escape hatch for ad-hoc dev / future actions
+    control: (action, payload = {}) => ipcRenderer.invoke('steward:control', { action, ...payload }),
+
+    // Push subscriptions
+    onStatus: (callback) => {
+      const handler = (_e, data) => callback(data);
+      ipcRenderer.on('steward:status', handler);
+      return () => ipcRenderer.removeListener('steward:status', handler);
+    },
+    onEventAck: (callback) => {
+      const handler = (_e, data) => callback(data);
+      ipcRenderer.on('steward:event-ack', handler);
+      return () => ipcRenderer.removeListener('steward:event-ack', handler);
+    },
+    onReady: (callback) => {
+      const handler = (_e, data) => callback(data);
+      ipcRenderer.on('steward:ready', handler);
+      return () => ipcRenderer.removeListener('steward:ready', handler);
+    },
+    onRules: (callback) => {
+      const handler = (_e, data) => callback(data);
+      ipcRenderer.on('steward:rules', handler);
+      return () => ipcRenderer.removeListener('steward:rules', handler);
+    },
+  },
 });

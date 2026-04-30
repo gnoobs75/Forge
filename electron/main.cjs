@@ -2706,6 +2706,180 @@ ipcMain.on('hq:start-watching', () => {
 // node-pty + IPC wiring used by terminal:create-implementation but WITHOUT
 // impl-session-specific logic (metering, brief files, agent metadata). The
 // adapter calls this for autoRestore() and for the sessionTabs:resume IPC.
+// ─── Studio Steward — daemon lifecycle + IPC ──────────────────────────────
+// Spawned as a separate Node child process via child_process.fork. Survives
+// renderer reloads. Heartbeats every 30s back to the renderer via IPC.
+// Status snapshots flow over `steward:status`; control commands over
+// `steward:control`. Set FORGE_STEWARD_DISABLE=1 to skip the spawn.
+const { fork: forkChild } = require('child_process');
+
+let stewardChild = null;
+let stewardSupervisor = null;
+let stewardLastStatus = null;
+let stewardSpawnTimer = null;
+
+function sendToRenderer(channel, data) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try { mainWindow.webContents.send(channel, data); } catch {}
+  }
+}
+
+function forwardToSteward(type, payload) {
+  if (!stewardChild || !stewardChild.connected) return;
+  try { stewardChild.send({ type, payload }); } catch {}
+}
+
+async function startSteward() {
+  if (process.env.FORGE_STEWARD_DISABLE === '1' || process.env.COE_STEWARD_DISABLE === '1') {
+    console.log('[Steward] Disabled via FORGE_STEWARD_DISABLE=1; skipping spawn');
+    return;
+  }
+
+  // Read enabled flag without depending on the ESM steward/config.js module
+  // (we're in CommonJS here). The Steward subprocess does its own proper
+  // config load via steward/config.js.
+  let enabled = true;
+  try {
+    const configPath = path.join(PATHS.hqData, '.steward', 'config.json');
+    if (fs.existsSync(configPath)) {
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (raw.enabled === false) enabled = false;
+    }
+  } catch { /* defaults stand */ }
+
+  if (!enabled) {
+    console.log('[Steward] Disabled in hq-data/.steward/config.json; skipping spawn');
+    return;
+  }
+
+  try {
+    const { createSupervisor } = await import('../steward/supervisor.js');
+    stewardSupervisor = createSupervisor();
+  } catch (err) {
+    console.error('[Steward] Failed to load supervisor:', err);
+    return;
+  }
+
+  spawnStewardOnce();
+}
+
+function spawnStewardOnce() {
+  if (stewardChild) return;
+  if (!stewardSupervisor) return;
+  if (!stewardSupervisor.canRestart()) {
+    console.error('[Steward] Restart cap reached; refusing further spawns');
+    sendToRenderer('steward:status', {
+      type: 'steward:status',
+      healthy: false,
+      message: 'Steward restart cap reached — check console',
+    });
+    return;
+  }
+
+  const stewardEntry = path.join(__dirname, '..', 'steward', 'index.js');
+  stewardSupervisor.recordAttempt();
+
+  try {
+    stewardChild = forkChild(stewardEntry, [], {
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1',
+        STEWARD_DATA_DIR: PATHS.hqData,
+      },
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    });
+  } catch (err) {
+    console.error('[Steward] fork failed:', err);
+    stewardChild = null;
+    return;
+  }
+
+  console.log(`[Steward] Spawned PID ${stewardChild.pid}`);
+
+  if (stewardChild.stdout) {
+    stewardChild.stdout.on('data', (d) => {
+      const s = d.toString().trim();
+      if (s) console.log('[Steward stdout]', s);
+    });
+  }
+  if (stewardChild.stderr) {
+    stewardChild.stderr.on('data', (d) => {
+      const s = d.toString().trim();
+      if (s) console.error('[Steward stderr]', s);
+    });
+  }
+
+  stewardChild.on('message', (msg) => {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'steward:status') stewardLastStatus = msg;
+    sendToRenderer(msg.type, msg);
+  });
+
+  stewardChild.on('exit', (code, signal) => {
+    console.log(`[Steward] Exited code=${code} signal=${signal}`);
+    stewardChild = null;
+    stewardLastStatus = null;
+    if (!stewardSupervisor) return;
+    if (!stewardSupervisor.canRestart()) {
+      console.error('[Steward] Restart cap reached; not restarting');
+      sendToRenderer('steward:status', {
+        type: 'steward:status',
+        healthy: false,
+        message: 'Restart cap reached',
+      });
+      return;
+    }
+    const delay = stewardSupervisor.nextDelay();
+    console.log(`[Steward] Restarting in ${delay}ms (attempt ${stewardSupervisor.attemptCount + 1})`);
+    if (stewardSpawnTimer) clearTimeout(stewardSpawnTimer);
+    stewardSpawnTimer = setTimeout(spawnStewardOnce, delay);
+  });
+
+  stewardChild.on('error', (err) => {
+    console.error('[Steward] Process error:', err);
+  });
+}
+
+function stopSteward() {
+  if (stewardSpawnTimer) {
+    clearTimeout(stewardSpawnTimer);
+    stewardSpawnTimer = null;
+  }
+  if (!stewardChild) return;
+  try { stewardChild.kill('SIGTERM'); } catch {}
+  stewardChild = null;
+  stewardLastStatus = null;
+}
+
+ipcMain.handle('steward:get-status', () => {
+  if (!stewardChild) {
+    return {
+      type: 'steward:status',
+      healthy: false,
+      running: false,
+      message: 'Steward not running (disabled or crashed)',
+    };
+  }
+  return stewardLastStatus || {
+    type: 'steward:status',
+    healthy: true,
+    running: true,
+    message: 'Steward starting up — heartbeat pending',
+  };
+});
+
+ipcMain.handle('steward:control', (event, payload) => {
+  if (!stewardChild || !stewardChild.connected) {
+    return { ok: false, error: 'Steward not running' };
+  }
+  try {
+    stewardChild.send({ type: 'steward:control', payload });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 async function spawnSessionPty(scopeId, cwd, cols, rows) {
   const shell = process.platform === 'win32'
     ? (process.env.COMSPEC || 'cmd.exe')
@@ -2789,6 +2963,11 @@ app.whenReady().then(async () => {
     console.error('[Forge] Friday auto-start failed:', err.message);
   }
 
+  // Studio Steward — separate Node child process. Heartbeats every 30s,
+  // maintains hq-data/.steward/{events.db,config.json}. Independent of
+  // Friday; safe to start in any order.
+  startSteward().catch((err) => console.error('[Steward] startSteward threw:', err));
+
   // Auto-reconnect Discord bot from saved credentials
   try {
     const secrets = readSecrets();
@@ -2824,6 +3003,9 @@ app.on('before-quit', async () => {
 });
 
 app.on('window-all-closed', () => {
+  // Stop the Studio Steward daemon cleanly
+  try { stopSteward(); } catch {}
+
   // Disconnect Discord bot
   try { discordBot.disconnect(); } catch {}
 
