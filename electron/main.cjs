@@ -2890,6 +2890,28 @@ ipcMain.handle('steward:control', (event, payload) => {
   }
 });
 
+// ─── Night Shift Phase 1 — overnight_eligible flag IPC + config ────────────
+const { setRecEligibility } = require('./recs-eligibility-io.cjs');
+const { setTodoEligibility } = require('./todos-eligibility-io.cjs');
+const { readConfig: readNightShiftConfig, writeConfig: writeNightShiftConfig } =
+  require('./nightshift-config-io.cjs');
+
+ipcMain.handle('forge:set-rec-eligibility', async (_evt, relPath, eligible) => {
+  return setRecEligibility(PATHS.hqData, relPath, eligible);
+});
+
+ipcMain.handle('forge:set-todo-eligibility', async (_evt, projectSlug, itemId, eligible) => {
+  return setTodoEligibility(PATHS.hqData, projectSlug, itemId, eligible);
+});
+
+ipcMain.handle('forge:nightshift-config-read', async () => {
+  return readNightShiftConfig(PATHS.hqData);
+});
+
+ipcMain.handle('forge:nightshift-config-write', async (_evt, partial) => {
+  return writeNightShiftConfig(PATHS.hqData, partial);
+});
+
 async function spawnSessionPty(scopeId, cwd, cols, rows) {
   const shell = process.platform === 'win32'
     ? (process.env.COMSPEC || 'cmd.exe')

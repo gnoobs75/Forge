@@ -237,6 +237,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
+  // Recommendation eligibility — flip overnight_eligible flag on a rec file.
+  recs: {
+    setEligibility: (relPath, eligible) =>
+      ipcRenderer.invoke('forge:set-rec-eligibility', relPath, eligible),
+  },
+
+  // Todo eligibility — flip overnight_eligible flag on a todo item.
+  todos: {
+    setEligibility: (projectSlug, itemId, eligible) =>
+      ipcRenderer.invoke('forge:set-todo-eligibility', projectSlug, itemId, eligible),
+  },
+
+  // Night Shift config — read/write hq-data/.nightshift/config.json.
+  nightshift: {
+    configRead:  ()        => ipcRenderer.invoke('forge:nightshift-config-read'),
+    configWrite: (partial) => ipcRenderer.invoke('forge:nightshift-config-write', partial),
+  },
+
   // Studio Steward — long-running daemon for end-to-end loop closure.
   // status snapshots arrive via onStatus every 30s; control commands push
   // back over invoke('steward:control', { action, ... }).

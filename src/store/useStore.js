@@ -148,8 +148,23 @@ function backfillRec(rec) {
   if (!patched._filePath && patched.project && patched.title) {
     patched._filePath = recRelativePath(patched);
   }
+  // Night Shift Phase 1 — both fields are optional.
+  // overnight_eligible: coerce to strict boolean; default false.
+  patched.overnight_eligible = patched.overnight_eligible === true;
+  // verify: keep only if it's a non-empty string; otherwise drop.
+  if (typeof patched.verify !== 'string' || patched.verify.trim() === '') {
+    delete patched.verify;
+  }
   return patched;
 }
+
+// Action wired by the NightShiftBadge — flips the eligibility flag on a rec
+// file and refreshes the optimistic store entry. Called from rec-row UIs
+// once a NightShiftBadge with onToggle is mounted.
+const setRecEligibilityAction = async (filePath, eligible) => {
+  if (!window.electronAPI?.recs?.setEligibility) return { ok: false, error: 'IPC not wired' };
+  return window.electronAPI.recs.setEligibility(filePath, eligible);
+};
 
 export const useStore = create((set, get) => ({
   // Data
@@ -316,6 +331,21 @@ export const useStore = create((set, get) => ({
     }));
   },
   clearLoaderWarnings: () => set({ loaderWarnings: [] }),
+
+  // Optimistic flip of a rec's overnight_eligible flag. The IPC handler
+  // updates the file on disk; the rec loader will re-pull on next refresh.
+  setRecEligibility: async (filePath, eligible) => {
+    const result = await setRecEligibilityAction(filePath, eligible);
+    if (result?.ok) {
+      // Optimistic update so the UI flips immediately
+      set(state => ({
+        recommendations: state.recommendations.map(r =>
+          r._filePath === filePath ? { ...r, overnight_eligible: !!eligible } : r
+        ),
+      }));
+    }
+    return result;
+  },
 
   // Loader for hq-data/projects/<slug>/daily-reports/*.json. Validates the
   // required {agent, agentColor, project, timestamp, type:'daily-report',
