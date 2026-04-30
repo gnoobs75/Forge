@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat -ano)",
+      "Bash(grep -E \"\\(App\\\\.tsx|index\\\\.ts\\)$\")",
+      "Bash(curl -s -o /tmp/bundle-test.txt -w \"HTTP %{http_code} | %{size_download} bytes | %{time_total}s\\\\n\" \"http://localhost:8081/node_modules/expo-router/entry.bundle?platform=android&dev=true&hot=false\" --max-time 90)",
+      "Read(//tmp/**)",
+      "Bash(tasklist)",
+      "Read(//c/Claude/Samurai/Forge/hq-data/**)",
+      "Read(//c/Claude/Samurai/Forge/hq-data//**)",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(node *)",
+      "Bash(git *)"
+    ]
+  }
+}

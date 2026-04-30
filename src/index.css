@@ -231,28 +231,127 @@
     100% { opacity: 0; transform: translateX(-50%) scale(0.8) translateY(-20px); }
   }
 
-  /* ─── Tribes 2: Raiders — ski arcs, projectiles, impact effects ─── */
+  /* ─── Tribes 2: Raiders — linear sweep + ski-bob, projectiles, impacts ─── */
 
-  /* Base container for a tribes warrior. Size driven by CSS var. */
+  /* Tribes warrior extends .whammy. Outer div runs left→right via
+     whammy-run; inner .whammy-tribes-ski does the vertical ski bob. */
   .whammy-tribes {
-    position: absolute;
-    width: var(--raider-size, 34px);
-    height: calc(var(--raider-size, 34px) * 1.15);
-    left: 0;
-    top: 0;
+    width: 56px;              /* overrides .whammy 72px to tighten silhouette */
+    height: 64px;
     filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6));
-    offset-rotate: auto 0deg;
-    will-change: offset-distance, transform;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .whammy-tribes-ski {
-    animation-name: whammy-ski-arc;
-    animation-timing-function: cubic-bezier(.45, .05, .55, .95);
-    animation-fill-mode: forwards;
+    display: inline-block;
+    position: relative;
+    animation: whammy-tribes-bob 1900ms ease-in-out infinite alternate;
+    transform-origin: center bottom;
   }
-  @keyframes whammy-ski-arc {
-    0%   { offset-distance: 0%; }
-    100% { offset-distance: 100%; }
+  @keyframes whammy-tribes-bob {
+    0%   { transform: translateY(0) rotate(-3deg); }
+    100% { transform: translateY(-12px) rotate(3deg); }
+  }
+
+  /* Un-mirror the shout text when the warrior runs right-to-left */
+  .whammy-tribes[style*="scaleX(-1)"] .whammy-shout {
+    animation-name: whammy-shout-wobble-flipped;
+  }
+
+  /* Choreographed runStyle keyframes — used by tribes2Kit.buildSkit to
+     stage a flag-capture scene. Each keyframe bakes in scaleX so it
+     overrides any inline transform during animation. */
+
+  /* Flag carrier: runs to ~86%, slows, then dies in place (rotate + fade). */
+  @keyframes whammy-tribes-flag-run {
+    0%   { left: -100px; opacity: 1; transform: scaleX(1) rotate(0deg) translateY(0); }
+    84%  { left: 84%;    opacity: 1; transform: scaleX(1) rotate(0deg) translateY(0); }
+    92%  { left: 86%;    opacity: 1; transform: scaleX(1) rotate(0deg) translateY(0); }
+    96%  { left: 86%;    opacity: 0.9; transform: scaleX(1) rotate(40deg) translateY(6px); }
+    100% { left: 86%;    opacity: 0.35; transform: scaleX(1) rotate(75deg) translateY(16px); }
+  }
+
+  /* Chaser: runs in pursuit, holds at flag pickup spot. */
+  @keyframes whammy-tribes-chase {
+    0%   { left: -100px; transform: scaleX(1); }
+    80%  { left: 76%;    transform: scaleX(1); }
+    95%  { left: 78%;    transform: scaleX(1); }
+    100% { left: 78%;    transform: scaleX(1); }
+  }
+
+  /* Returner: spawns at pickup spot, escapes back to base (R→L). */
+  @keyframes whammy-tribes-flag-return {
+    0%   { left: 78%;    transform: scaleX(-1); }
+    8%   { left: 78%;    transform: scaleX(-1); }
+    100% { left: -100px; transform: scaleX(-1); }
+  }
+
+  /* Sniper: jets to lower-left perch, holds position with mortar trained. */
+  @keyframes whammy-tribes-sniper {
+    0%   { left: -100px; transform: scaleX(1); }
+    8%   { left: 5%;     transform: scaleX(1); }
+    100% { left: 5%;     transform: scaleX(1); }
+  }
+
+  /* ─── Mortar targeting telegraph ─── */
+  /* Old-school green wireframe arc + reticle that locks on before
+     the mortar fires. Inline SVG positioned absolute over the overlay. */
+  .whammy-telegraph {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .whammy-telegraph-arc {
+    fill: none;
+    stroke: #22c55e;
+    stroke-width: 2;
+    stroke-dasharray: 6 5;
+    filter: drop-shadow(0 0 6px #22c55e);
+    animation: whammy-telegraph-scan 1200ms linear forwards;
+  }
+  .whammy-telegraph-reticle {
+    fill: none;
+    stroke: #22c55e;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 0 4px #22c55e);
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: whammy-telegraph-pulse 500ms ease-in-out infinite alternate;
+  }
+  .whammy-telegraph-tick {
+    stroke: #22c55e;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 0 3px #22c55e);
+  }
+  .whammy-telegraph-dot {
+    fill: #bbf7d0;
+    filter: drop-shadow(0 0 5px #22c55e);
+    animation: whammy-telegraph-blink 280ms ease-in-out infinite alternate;
+  }
+  .whammy-telegraph-text {
+    fill: #22c55e;
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    filter: drop-shadow(0 0 4px #22c55e);
+    animation: whammy-telegraph-blink 320ms ease-in-out infinite alternate;
+  }
+  @keyframes whammy-telegraph-scan {
+    0%   { stroke-dashoffset: 0;    opacity: 0.15; }
+    18%  { opacity: 1; }
+    100% { stroke-dashoffset: -240; opacity: 1; }
+  }
+  @keyframes whammy-telegraph-pulse {
+    0%   { transform: scale(1.0); opacity: 0.6; }
+    100% { transform: scale(1.18); opacity: 1; }
+  }
+  @keyframes whammy-telegraph-blink {
+    0%   { opacity: 0.55; }
+    100% { opacity: 1; }
   }
 
   .whammy-jetpack-flame {
@@ -280,50 +379,56 @@
 
   /* ─── Projectiles ─── */
 
+  /* Spinfusor disc — glowing puck flying in a straight line to impact.
+     Caller supplies --proj-dx / --proj-dy / --proj-duration via inline style. */
   .whammy-disc {
     position: absolute;
-    left: 0; top: 0;
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #bae6fd 35%, #38bdf8 65%, #0ea5e9 100%);
-    box-shadow: 0 0 6px #38bdf8, 0 0 12px rgba(56, 189, 248, 0.5);
-    offset-rotate: 0deg;
-    animation-name: whammy-ski-arc;
-    animation-timing-function: linear;
-    animation-fill-mode: forwards;
-    will-change: offset-distance;
+    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #bae6fd 35%,
+      var(--proj-color, #38bdf8) 65%, #0ea5e9 100%);
+    box-shadow: 0 0 6px var(--proj-color, #38bdf8),
+                0 0 14px color-mix(in srgb, var(--proj-color, #38bdf8) 60%, transparent);
+    animation: whammy-disc-fly var(--proj-duration, 900ms) linear forwards;
+    will-change: transform, opacity;
+    pointer-events: none;
   }
   .whammy-disc::before {
     content: '';
     position: absolute;
     inset: 3px;
     border-radius: 50%;
-    background: radial-gradient(circle, transparent 30%, rgba(56,189,248,0.6) 70%);
-    animation: whammy-disc-spin 200ms linear infinite;
+    background: radial-gradient(circle, transparent 30%, rgba(255,255,255,0.4) 70%);
+    animation: whammy-disc-spin 180ms linear infinite;
   }
   @keyframes whammy-disc-spin {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
   }
+  @keyframes whammy-disc-fly {
+    0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+    85%  { transform: translate(var(--proj-dx), var(--proj-dy)) scale(1); opacity: 1; }
+    100% { transform: translate(var(--proj-dx), var(--proj-dy)) scale(1.8); opacity: 0; }
+  }
 
+  /* Mortar ball — heavy green orb that arcs parabolically to impact. */
   .whammy-mortar-ball {
     position: absolute;
-    left: 0; top: 0;
     width: 18px;
     height: 18px;
     border-radius: 50%;
     background: radial-gradient(circle at 40% 40%, #ffffff 0%, #bbf7d0 20%, #22c55e 55%, #14532d 100%);
     box-shadow: 0 0 10px #22c55e, 0 0 20px rgba(34, 197, 94, 0.6), 0 0 30px rgba(34, 197, 94, 0.3);
-    offset-rotate: 0deg;
-    animation-name: whammy-mortar-lob;
-    animation-timing-function: cubic-bezier(.35, 0, .65, 1);
-    animation-fill-mode: forwards;
-    will-change: offset-distance;
+    animation: whammy-mortar-lob var(--proj-duration, 1400ms) linear forwards;
+    will-change: transform, opacity;
+    pointer-events: none;
   }
   @keyframes whammy-mortar-lob {
-    0%   { offset-distance: 0%; }
-    100% { offset-distance: 100%; }
+    0%   { transform: translate(0, 0); opacity: 1; }
+    50%  { transform: translate(calc(var(--proj-dx) * 0.5), calc(var(--proj-dy) * 0.5 - var(--proj-peak, 80px))); opacity: 1; }
+    92%  { transform: translate(var(--proj-dx), var(--proj-dy)); opacity: 1; }
+    100% { transform: translate(var(--proj-dx), var(--proj-dy)) scale(1.4); opacity: 0; }
   }
   .whammy-mortar-ball-trail {
     position: absolute;

@@ -103,6 +103,22 @@ export const useStore = create((set, get) => ({
   showNewProjectModal: false,
   implementationSessions: [],
 
+  // Per-scope "Claude is computing" state — driven by claudeBusyDetector
+  // parsing the PTY stream. Keys are scopeIds; values are booleans.
+  claudeBusy: {},
+  setClaudeBusy: (scopeId, value) => set(state => {
+    const current = state.claudeBusy[scopeId] || false;
+    if (current === value) return state;
+    return { claudeBusy: { ...state.claudeBusy, [scopeId]: value } };
+  }),
+
+  // Active Whammy Kit (whammies | tribes2 | future kits). Persisted.
+  activeKitId: loadPersistedData('forge-whammy-kit', 'whammies'),
+  setActiveKitId: (id) => {
+    set({ activeKitId: id });
+    try { localStorage.setItem('forge-whammy-kit', JSON.stringify(id)); } catch {}
+  },
+
   // Persistent Claude CLI sessions (tracked by main-process SessionTracker).
   // Populated on startup via window.electronAPI.sessionTabs.list() + onUpdate.
   claudeSessions: [],   // TabRecord[]

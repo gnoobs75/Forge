@@ -4,7 +4,9 @@ import { buildImplementPrompt } from '../utils/buildImplementPrompt';
 import { buildAgentTaskPrompt } from '../utils/buildAgentTaskPrompt';
 import { playSound } from '../utils/sounds';
 import { getAgentBrain, getModelFlag } from '../utils/brainConfig';
-import TerminalTabBar from './TerminalTabBar';
+import { trackBusyFromData, resetBusy } from '../utils/claudeBusyDetector';
+import SessionSidebar from './sidebar/SessionSidebar';
+import WhammyOverlay from './WhammyOverlay';
 
 // Agent suggestions per project scope
 const SCOPE_AGENTS = {
@@ -493,6 +495,7 @@ export default function Terminal({ scope }) {
       const removeData = window.electronAPI.terminal.onData((scopeId, data) => {
         const entry = terminalsRef.current.get(scopeId);
         if (entry) entry.term.write(data);
+        trackBusyFromData(scopeId, data);
       });
 
       const removeExit = window.electronAPI.terminal.onExit((scopeId, exitCode) => {
@@ -500,6 +503,7 @@ export default function Terminal({ scope }) {
         if (entry) {
           entry.term.writeln(`\r\n\x1b[33m[Process exited with code ${exitCode}]\x1b[0m`);
         }
+        resetBusy(scopeId);
 
         // Tool sessions: status-only; don't trigger rec-resolution or sfx.
         if (scopeId.startsWith('tool-')) {
@@ -802,9 +806,9 @@ export default function Terminal({ scope }) {
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-forge-bg" onClick={handleTerminalClick}>
-      {/* Tab bar — replaces static header */}
-      <TerminalTabBar
+    <div className="h-full flex bg-forge-bg" onClick={handleTerminalClick}>
+      {/* Vertical session sidebar — projects + nested sessions tree */}
+      <SessionSidebar
         scope={scope}
         activeTabId={activeTabId}
         onTabSelect={handleTabSelect}
@@ -819,6 +823,8 @@ export default function Terminal({ scope }) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {/* Whammy overlay — renders while Claude is computing in the active scope */}
+        <WhammyOverlay key={activeTabId || scope?.id || 'none'} scopeId={activeTabId || scope?.id} />
         {/* Drop overlay */}
         {dragOver && (
           <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center"

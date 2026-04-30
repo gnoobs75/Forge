@@ -76,7 +76,7 @@ export default function TitleBar() {
 
       {/* Center: Project switcher */}
       <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' }}>
-        {projects.map((project) => (
+        {projects.filter((p) => p.slug !== '_template').map((project) => (
           <button
             key={project.slug}
             onClick={() => setActiveProject(project.slug)}

@@ -345,9 +345,21 @@ export function getActiveKit(id) {
   return KITS[id] || KITS.whammies;
 }
 
-// Universal SVG wrapper — takes a kit object (or id) and variant id.
-export function WhammySvg({ kit, variant, size = 72 }) {
+// Universal SVG wrapper — takes a kit object (or id), variant id, and
+// optional extras (e.g., { carryingFlag: true } for the medium raider).
+// Tribes renderers return their own <svg>; Whammies renderers return raw
+// elements that we wrap here. We detect based on kit id.
+export function WhammySvg({ kit, variant, size = 72, extras }) {
   const k = typeof kit === 'string' ? KITS[kit] : (kit || KITS.whammies);
+  if (k.id === 'tribes2') {
+    // Tribes components already return a full <svg> with their own viewBox.
+    // Wrap in a fixed-size span so the caller can control footprint.
+    return (
+      <span style={{ display: 'inline-block', width: size, height: Math.round(size * 46 / 40) }}>
+        {k.renderVariant(variant, extras)}
+      </span>
+    );
+  }
   return (
     <svg
       width={size}
@@ -355,7 +367,7 @@ export function WhammySvg({ kit, variant, size = 72 }) {
       viewBox="0 0 72 80"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {k.renderVariant(variant)}
+      {k.renderVariant(variant, extras)}
     </svg>
   );
 }

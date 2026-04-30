@@ -62,3 +62,34 @@ export function pickArcPath() {
   const keys = Object.keys(SKI_ARC_PATHS);
   return SKI_ARC_PATHS[keys[Math.floor(Math.random() * keys.length)]];
 }
+
+// Maps each tribes runStyle to where the warrior is along the screen
+// (as a percentage of container width) at fractional time t ∈ [0,1].
+// Mirrors the CSS @keyframes so projectiles fire from the warrior's
+// real on-screen position, not the linear t*W approximation.
+export function computeShooterPctX(shooter, t) {
+  const reverse = !!shooter.reverse;
+  switch (shooter.runStyle) {
+    case 'flag-carrier':
+      // 0% -100px → 84% 84% → 92% 86% → 100% 86%
+      if (t <= 0.84) return (84 / 0.84) * t;
+      if (t <= 0.92) return 84 + (86 - 84) * ((t - 0.84) / 0.08);
+      return 86;
+    case 'chaser':
+      // 0% -100px → 80% 76% → 95% 78% → 100% 78%
+      if (t <= 0.80) return (76 / 0.80) * t;
+      if (t <= 0.95) return 76 + (78 - 76) * ((t - 0.80) / 0.15);
+      return 78;
+    case 'returning':
+      // 0% 78% → 8% 78% (held) → 100% -100px
+      if (t <= 0.08) return 78;
+      return 78 - (78 - (-12)) * ((t - 0.08) / 0.92);
+    case 'sniper-stand':
+      // 0% -100px → 8% 5% (jet in) → 100% 5% (held)
+      if (t <= 0.08) return (5 / 0.08) * t;
+      return 5;
+    default:
+      // Default whammy-run: -100px → calc(100%+100px), modeled as t*100.
+      return reverse ? (1 - t) * 100 : t * 100;
+  }
+}

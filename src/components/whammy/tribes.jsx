@@ -134,9 +134,9 @@ export const tribes2Kit = {
     'heavy-red':   'FIRE IN THE HOLE!',
   },
   skitChance: 1.0,
-  spawnInterval: 11000,
+  spawnInterval: 14000,    // scene runs ~13.2s; gives a breath between plays
   runDuration: 7000,
-  laneRange: [62, 82],
+  laneRange: [55, 70],     // leave room below for the Heavy sniper perch
 
   renderVariant(id, extras = {}) {
     const Cmp = TRIBES_RENDERERS[id] || TRIBES_RENDERERS['medium-blue'];
@@ -165,54 +165,96 @@ export const tribes2Kit = {
   },
 
   buildSkit(idRef, lane) {
-    const heavyCameo = Math.random() < 0.25;
-    const arcBlue = pickArcPath();
-    const arcRed  = pickArcPath();
+    // ── Choreography ──────────────────────────────────────────────
+    // Three-act scene: blue carrier escapes → red Heavy sniper lands a
+    // cross-screen mortar that kills him at the edge → red Medium chaser
+    // arrives, picks up the flag, and runs it back to base.
+    //
+    //   t=0      blue carrier spawns (flag-carrier runStyle)
+    //   t=300    red Medium chaser spawns (chaser runStyle, ends at 78%)
+    //   t=400    red Heavy sniper spawns (sniper-stand, jets to 5%)
+    //   t=4400   green telegraph + reticle locks on blue
+    //   t=5600   sniper fires cross-screen mortar
+    //   t=6800   mortar impacts blue at his death pose → carrier dies
+    //   t=7000   chaser arrives at flag pickup spot, holds (700ms pause)
+    //   t=7700   red Medium returner spawns at 78%, runs R→L with flag
+    //   t=13200  returner exits left side. Scene done.
 
-    const blueTier  = heavyCameo && Math.random() < 0.5 ? 'heavy' : 'medium';
-    const redTier   = heavyCameo && blueTier !== 'heavy' ? 'heavy' : 'medium';
-    const blueDur   = TIER_CONFIG[blueTier].duration;
-    const redDur    = TIER_CONFIG[redTier].duration;
+    const D_BLUE         = 7000;   // blue carrier's full run (dies at end)
+    const D_CHASER       = 6700;   // chaser run (300ms after blue, ends at t=7000)
+    const D_SNIPER       = 12500;  // sniper held position throughout
+    const D_RETURN       = 5500;
+    const PICKUP_PAUSE   = 700;
+    const TELEGRAPH_LEAD = 1200;
 
-    const blueId = ++idRef.current;
-    const redId  = ++idRef.current;
+    const blueId   = ++idRef.current;
+    const chaserId = ++idRef.current;
+    const sniperId = ++idRef.current;
+    const returnId = ++idRef.current;
 
     const warriors = [
       {
-        id: blueId, variant: `${blueTier}-blue`, tier: blueTier, team: 'blue',
-        lane, reverse: false, duration: blueDur, arcPath: arcBlue,
-        extras: blueTier === 'medium' ? { carryingFlag: true } : {},
-        label: this.shouts[`${blueTier}-blue`],
+        id: blueId, variant: 'medium-blue', tier: 'medium', team: 'blue',
+        lane, reverse: false, duration: D_BLUE, delay: 0,
+        runStyle: 'flag-carrier',
+        extras: { carryingFlag: true },
+        label: 'ALMOST!',
       },
       {
-        id: redId, variant: `${redTier}-red`, tier: redTier, team: 'red',
-        lane: lane + 1.5, reverse: false, duration: redDur, arcPath: arcRed,
-        delay: 700,
-        label: this.shouts[`${redTier}-red`],
+        id: chaserId, variant: 'medium-red', tier: 'medium', team: 'red',
+        lane: lane + 1.5, reverse: false, duration: D_CHASER, delay: 300,
+        runStyle: 'chaser',
+        label: 'GET HIM!',
+      },
+      {
+        id: sniperId, variant: 'heavy-red', tier: 'heavy', team: 'red',
+        lane: Math.min(lane + 6, 92), reverse: false,
+        duration: D_SNIPER, delay: 400,
+        runStyle: 'sniper-stand',
+        label: 'TARGET LOCKED',
+      },
+      {
+        id: returnId, variant: 'medium-red', tier: 'medium', team: 'red',
+        lane: lane + 0.5, reverse: true,
+        duration: D_RETURN,
+        delay: 300 + D_CHASER + PICKUP_PAUSE,    // = 7700ms
+        runStyle: 'returning',
+        extras: { carryingFlag: true },
+        label: 'FLAG SECURE!',
       },
     ];
 
     const projectiles = [];
-    const makeHit = (shooter, weapon, atT, impactDx, impactDy) => {
-      const id = ++idRef.current;
-      projectiles.push({
-        id,
-        weapon,
-        shooterId: shooter.id,
-        team: shooter.team,
-        fireAtT: atT,
-        flightMs: weapon === 'mortar' ? 1400 : 900,
-        impactDx,
-        impactDy,
-      });
+    const pushProjectile = (props) => {
+      projectiles.push({ id: ++idRef.current, ...props });
     };
 
-    const blueWeapon = blueTier === 'heavy' ? 'mortar' : 'spinfusor';
-    const redWeapon  = redTier === 'heavy' ? 'mortar' : 'spinfusor';
-    makeHit(warriors[1], redWeapon, 0.25, 180, -8);
-    makeHit(warriors[0], blueWeapon, 0.40, -140, 6);
-    makeHit(warriors[1], redWeapon, 0.55, 200, 4);
-    makeHit(warriors[0], blueWeapon, 0.72, -160, -4);
+    // The killing mortar — fires from the Heavy sniper at t≈5600ms,
+    // lands at blue's death pose (~88% across) at t≈6800ms.
+    // impactPct (percent of container W/H) instead of pixel offset so
+    // the trajectory scales to whatever terminal width is in play.
+    pushProjectile({
+      weapon: 'mortar',
+      shooterId: sniperId,
+      team: 'red',
+      fireAtT: (5600 - 400) / D_SNIPER,   // ≈ 0.416
+      flightMs: 1200,
+      impactPct: { x: 87, y: lane + 1 },   // hit blue at his death pose
+      peakPx: 200,                          // dramatic high arc
+      telegraph: { leadMs: TELEGRAPH_LEAD },
+    });
+
+    // A couple of chaser spinfusor misses for additional action.
+    pushProjectile({
+      weapon: 'spinfusor', shooterId: chaserId, team: 'red',
+      fireAtT: 0.32, flightMs: 700,
+      impactDx: 130, impactDy: 22,         // misses low
+    });
+    pushProjectile({
+      weapon: 'spinfusor', shooterId: chaserId, team: 'red',
+      fireAtT: 0.52, flightMs: 700,
+      impactDx: 150, impactDy: -28,        // misses high
+    });
 
     return { warriors, projectiles };
   },

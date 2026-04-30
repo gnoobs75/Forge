@@ -17,6 +17,8 @@ import DiscordChat from './DiscordChat';
 import DiscordEventWatcher from './DiscordEventWatcher';
 import IdeaBoard from './IdeaBoard';
 import MeteringPanel from './MeteringPanel';
+import WhammyStudio from './WhammyStudio';
+import { WhammySvg } from '../WhammyOverlay';
 import DraggableTabBar from './DraggableTabBar';
 
 const DEFAULT_TABS = [
@@ -30,6 +32,7 @@ const DEFAULT_TABS = [
   { id: 'council', label: 'Discord', icon: '\u229E' },
   { id: 'ideas', label: 'Ideas', icon: '\uD83D\uDCA1' },
   { id: 'metering', label: 'Metering', icon: '\u2B21' },
+  { id: 'whammy', label: 'Whammies', icon: <WhammySvg variant="classic" size={18} /> },
 ];
 
 export default function StudioOverview() {
@@ -100,6 +103,7 @@ export default function StudioOverview() {
         {activeTab === 'council' && <DiscordChat />}
         {activeTab === 'ideas' && <IdeaBoard />}
         {activeTab === 'metering' && <MeteringPanel />}
+        {activeTab === 'whammy' && <WhammyStudio />}
       </div>
     </div>
   );
