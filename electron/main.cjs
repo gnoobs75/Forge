@@ -2687,17 +2687,27 @@ ipcMain.on('hq:start-watching', () => {
   watcher = chokidar.watch(watchPath, {
     persistent: true,
     ignoreInitial: true,
-    depth: 5
+    depth: 5,
+    // Coalesce rapid writes (matches CoE's setup — chokidar otherwise fires
+    // ~3 events for a single fs.writeFile in ~20ms). Without this, the
+    // Steward would see N duplicate events for one logical save.
+    awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
+    // Skip the Steward's own state directory — its writes to events.db /
+    // events.db-wal / events.db-shm would re-enter the reactor otherwise.
+    ignored: (p) => /[\\/]\.steward[\\/]/.test(p),
   });
 
   watcher.on('all', (eventType, filePath) => {
+    const relative = path.relative(watchPath, filePath).replace(/\\/g, '/');
     if (mainWindow && !mainWindow.isDestroyed()) {
-      const relative = path.relative(watchPath, filePath).replace(/\\/g, '/');
       mainWindow.webContents.send('hq:file-changed', {
         event: eventType,
         path: relative
       });
     }
+    // Forward to the Studio Steward daemon. The Steward routes the event
+    // through its reactor (matchRules → enqueueTask) when running.
+    forwardToSteward('hq:file-changed', { event: eventType, path: relative });
   });
 });
 
