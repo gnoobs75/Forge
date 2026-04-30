@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store/useStore';
+import StewardLive from './steward/StewardLive.jsx';
+import PRDPanel from './steward/PRDPanel.jsx';
 
 const HELP_TABS = [
   { id: 'overview', label: 'How It Works', icon: '\u{1F3F0}' },
@@ -7,10 +9,11 @@ const HELP_TABS = [
   { id: 'workflows', label: 'Workflows', icon: '\u{1F504}' },
   { id: 'ecosystem', label: 'Ecosystem', icon: '\u{1F30D}' },
   { id: 'technical', label: 'Technical', icon: '\u{1F527}' },
+  { id: 'steward', label: 'The Steward', icon: '\u{1F501}' },
 ];
 
-export default function HelpPanel({ onClose }) {
-  const [activeTab, setActiveTab] = useState('overview');
+export default function HelpPanel({ onClose, defaultTab = 'overview' }) {
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const agents = useStore(s => s.agents);
 
   return (
@@ -61,6 +64,7 @@ export default function HelpPanel({ onClose }) {
           {activeTab === 'workflows' && <WorkflowsSection />}
           {activeTab === 'ecosystem' && <EcosystemSection />}
           {activeTab === 'technical' && <TechnicalSection />}
+          {activeTab === 'steward' && <StewardSection />}
         </div>
 
         {/* Footer */}
@@ -926,6 +930,57 @@ function DataFlowBox({ title, icon, color, items }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── The Steward Section ───
+//
+// Three live cards: a static explainer, the live status panel reading
+// the steward:status heartbeat, and the per-project PRD picker. Mirrors
+// the CoE layout so behavior stays consistent across the two studios.
+function StewardSection() {
+  return (
+    <div className="space-y-6">
+      <Card title="What Is the Studio Steward?" accent="#A78BFA">
+        <p className="text-sm text-forge-text-secondary leading-relaxed">
+          The Studio Steward is a long-running daemon that watches every studio
+          event — file changes, git commits, recommendation status flips,
+          terminal exits — and auto-maintains the documentation on every
+          project: <code className="text-forge-accent">features.json</code>,{' '}
+          <code className="text-forge-accent">history.json</code>,{' '}
+          <code className="text-forge-accent">todo.json</code>,{' '}
+          <code className="text-forge-accent">prd.md</code>,{' '}
+          <code className="text-forge-accent">activity-log.json</code>, and
+          per-project memory.
+        </p>
+        <p className="text-sm text-forge-text-secondary leading-relaxed mt-2">
+          It commits each maintenance change granularly to your local git with
+          a <code className="text-forge-accent">steward:</code> committer prefix.{' '}
+          <strong className="text-forge-text-primary">No remote pushes</strong>{' '}
+          — you push manually after a <code className="text-forge-accent">git log</code>{' '}
+          review.
+        </p>
+        <p className="text-xs text-forge-text-muted mt-3">
+          State directory:{' '}
+          <code className="text-forge-text-secondary">hq-data/.steward/</code>{' '}
+          (gitignored — events.db SQLite log + config.json). Set{' '}
+          <code className="text-forge-text-secondary">FORGE_STEWARD_DISABLE=1</code>{' '}
+          to disable for one session, or edit{' '}
+          <code className="text-forge-text-secondary">hq-data/.steward/config.json</code>{' '}
+          to permanently disable. Per-project pause via{' '}
+          <code className="text-forge-text-secondary">paused: ["slug"]</code> in
+          config or via the controls below.
+        </p>
+      </Card>
+
+      <Card title="Live Steward State" accent="#22D3EE">
+        <StewardLive />
+      </Card>
+
+      <Card title="Project PRDs" accent="#F59E0B">
+        <PRDPanel />
+      </Card>
     </div>
   );
 }
