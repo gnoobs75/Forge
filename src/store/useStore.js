@@ -332,6 +332,86 @@ export const useStore = create((set, get) => ({
   },
   clearLoaderWarnings: () => set({ loaderWarnings: [] }),
 
+  // ─── Bug Feedback Loop ─────────────────────────────────────────────
+  // bugs[]: flat list, newest-first by createdAt. bugsBySlug: per-project
+  // index for O(1) project filtering. bugLoaderWarnings: separate cap
+  // from the recommendation/daily-report loaderWarnings so they don't
+  // crowd each other on the dashboard.
+  bugs: [],
+  bugsBySlug: {},
+  bugLoaderWarnings: [],
+  loadBugs: async () => {
+    if (!window.electronAPI?.hq) return;
+    try {
+      const projectsDir = await window.electronAPI.hq.readDir('projects');
+      if (!projectsDir.ok) return;
+
+      const allBugs = [];
+      const newWarnings = [];
+
+      for (const entry of projectsDir.data) {
+        if (!entry.isDirectory) continue;
+        const bugsDir = await window.electronAPI.hq.readDir(`projects/${entry.name}/bugs`);
+        if (!bugsDir.ok) continue;
+
+        for (const bugFile of bugsDir.data) {
+          if (!bugFile.name.endsWith('.json') || bugFile.name.startsWith('.')) continue;
+          const relPath = `projects/${entry.name}/bugs/${bugFile.name}`;
+          const bugData = await window.electronAPI.hq.readFile(relPath);
+          if (!bugData.ok) continue;
+
+          let bug;
+          try { bug = JSON.parse(bugData.data); }
+          catch (e) {
+            newWarnings.push({ file: relPath, missing: ['valid JSON: ' + e.message], timestamp: new Date().toISOString() });
+            continue;
+          }
+
+          const missing = [];
+          if (!bug.id) missing.push('id');
+          if (!bug.project) missing.push('project');
+          if (!bug.title) missing.push('title');
+          if (!bug.status) missing.push('status');
+          if (missing.length > 0) {
+            newWarnings.push({ file: relPath, missing, timestamp: new Date().toISOString() });
+            continue;
+          }
+
+          if (!bug.severity) bug.severity = 'medium';
+          if (!bug.category) bug.category = 'other';
+          if (!bug.priority) bug.priority = 'medium';
+          if (!Array.isArray(bug.tags)) bug.tags = [];
+          if (!Array.isArray(bug.comments)) bug.comments = [];
+          bug._filePath = relPath;
+          allBugs.push(bug);
+        }
+      }
+
+      allBugs.sort((a, b) => {
+        const at = a.createdAt || '';
+        const bt = b.createdAt || '';
+        if (at !== bt) return bt.localeCompare(at);
+        return (b.id || '').localeCompare(a.id || '');
+      });
+
+      const bySlug = {};
+      for (const bug of allBugs) {
+        if (!bySlug[bug.project]) bySlug[bug.project] = [];
+        bySlug[bug.project].push(bug);
+      }
+
+      set(state => {
+        const existing = state.bugLoaderWarnings.filter(
+          w => !newWarnings.some(nw => nw.file === w.file)
+        );
+        const merged = [...newWarnings, ...existing].slice(0, 50);
+        return { bugs: allBugs, bugsBySlug: bySlug, bugLoaderWarnings: merged };
+      });
+    } catch (err) {
+      console.warn('Could not load bugs:', err);
+    }
+  },
+
   // Optimistic flip of a rec's overnight_eligible flag. The IPC handler
   // updates the file on disk; the rec loader will re-pull on next refresh.
   setRecEligibility: async (filePath, eligible) => {
