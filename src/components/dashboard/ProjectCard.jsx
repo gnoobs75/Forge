@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '../../store/useStore';
+import FeaturesStalenessBadge from './FeaturesStalenessBadge';
 
 const PHASE_COLORS = {
   discovery: '#8B5CF6',
@@ -72,8 +73,8 @@ export default function ProjectCard({ project, index = 0 }) {
             )}
           </div>
 
-          {/* Phase badge */}
-          <div className="mt-3">
+          {/* Phase badge + features staleness */}
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
             <span
               className="badge"
               style={{
@@ -85,6 +86,7 @@ export default function ProjectCard({ project, index = 0 }) {
             >
               {PHASE_LABELS[project.phase] || project.phase}
             </span>
+            <FeaturesStalenessBadge slug={project.slug} compact />
           </div>
 
           {/* Client */}

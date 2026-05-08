@@ -20,6 +20,7 @@ import ProjectApiSpecs from './ProjectApiSpecs';
 import ProjectMcpTools from './ProjectMcpTools';
 import ProjectBugs, { getOpenBugCount } from './ProjectBugs';
 import CouncilChipRow from '../CouncilChipRow';
+import FeaturesStalenessBadge from './FeaturesStalenessBadge';
 
 const PHASE_LIST = [
   { id: 'discovery', name: 'Discovery' },
@@ -164,6 +165,9 @@ export default function ProjectDetail({ slug }) {
           <p className="text-sm text-forge-text-secondary mt-1">
             {project.description}
           </p>
+          <div className="mt-2">
+            <FeaturesStalenessBadge slug={slug} />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
