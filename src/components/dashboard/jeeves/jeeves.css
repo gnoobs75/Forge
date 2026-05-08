@@ -1,0 +1,38 @@
+/* Jeeves nav tab indicator — gradient sweep while pool.running, halo
+   pulse on each new action. Anchored on lavender (#A78BFA = JEEVES_COLOR)
+   at both gradient stops so the loop seam is invisible. */
+
+@keyframes jeeves-gradient-sweep {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes jeeves-pulse-halo {
+  0%   { box-shadow: 0 0 0 0   rgba(167, 139, 250, 0.65); opacity: 1; }
+  100% { box-shadow: 0 0 0 12px rgba(167, 139, 250, 0);   opacity: 0; }
+}
+
+.jeeves-glow {
+  background: linear-gradient(90deg,
+    #A78BFA, #60A5FA, #34D399, #FBBF24, #F472B6, #A78BFA);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: jeeves-gradient-sweep 4s linear infinite;
+}
+
+.jeeves-pulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 6px;
+  pointer-events: none;
+  animation: jeeves-pulse-halo 2s ease-out forwards;
+}
+
+.jeeves-tab-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}

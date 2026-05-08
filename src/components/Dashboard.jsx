@@ -7,6 +7,8 @@ import AgentProfile from './dashboard/AgentProfile';
 import FridayPanel from './dashboard/FridayPanel';
 import FridayPersona from './dashboard/FridayPersona';
 import FloatingMiniOrb from './dashboard/friday/FloatingMiniOrb';
+import JeevesPage from './dashboard/JeevesPage';
+import JeevesTabLabel from './dashboard/jeeves/JeevesTabLabel';
 
 // View depth: overview=0, detail/agent=1
 function getViewDepth(activeProject, activeAgent) {
@@ -239,6 +241,18 @@ export default function Dashboard() {
             </NavButton>
           </>
         )}
+        <span className="text-forge-text-muted text-xs">|</span>
+        <NavButton
+          active={activeView === 'jeeves'}
+          onClick={() => {
+            useStore.getState().setActiveAgent(null);
+            useStore.getState().setActiveProject(null);
+            setActiveView('jeeves');
+          }}
+          style={{ color: activeView === 'jeeves' ? '#A78BFA' : undefined }}
+        >
+          <JeevesTabLabel />
+        </NavButton>
         {activeAgent && activeAgentData && (
           <>
             <span className="text-forge-text-muted text-xs">/</span>
@@ -264,6 +278,7 @@ export default function Dashboard() {
   const renderContent = () => {
     if (activeView === 'friday') return <FridayPanel />;
     if (activeView === 'friday-persona') return <FridayPersona />;
+    if (activeView === 'jeeves') return <JeevesPage />;
     if (activeAgent) return <AgentProfile agentId={activeAgent} />;
     if (activeProject) return <ProjectDetail slug={activeProject} />;
     return <StudioOverview />;
