@@ -118,6 +118,15 @@ export default function BugCard({ bug, showProject = false }) {
     }
   }, [bug.id, bug.assignedTo, sessionStatus]);
 
+  // Re-run = clear the autoFixAttempted gate + set autoFixRequested:true.
+  // The auto-fix rule sees the file change, picks up autoFixRequested, runs.
+  // Useful for bugs that failed for infrastructure reasons (missing claude
+  // binary, no verifyCommand) — boss fixes the underlying cause and clicks
+  // Re-run rather than re-filing.
+  const onRetryAutoFix = useCallback(async () => {
+    await useStore.getState().retryBugAutoFix(bug.id);
+  }, [bug.id]);
+
   return (
     <div
       data-testid={`bug-card-${bug.id}`}
@@ -400,7 +409,9 @@ export default function BugCard({ bug, showProject = false }) {
             {/* Open Session — interactive boss-driven path. Spawns a Friday
                 agent PTY scoped to this bug with the full instruction
                 pre-loaded. Disabled when unassigned (the engine needs an
-                agent to dispatch to) or when terminal: closed/wontfix. */}
+                agent to dispatch to) or when terminal: closed/wontfix.
+                Re-run sits next to it for bugs whose auto-fix failed for
+                infrastructure reasons. */}
             {bug.status !== 'closed' && bug.status !== 'wontfix' && (
               <div className="ml-auto flex items-center gap-2">
                 {sessionStatus === 'queued' && (
@@ -408,6 +419,17 @@ export default function BugCard({ bug, showProject = false }) {
                 )}
                 {sessionStatus === 'error' && (
                   <span className="text-[10px] text-red-400">spawn failed — see console</span>
+                )}
+                {bug.status === 'open' && bug.autoFixAttempted === true && (
+                  <button
+                    type="button"
+                    onClick={onRetryAutoFix}
+                    title="Clear the autoFixAttempted gate so the auto-fix engine retries on the next chokidar tick"
+                    className="px-2 py-1 text-[11px] font-medium rounded border transition-colors
+                               border-forge-border text-forge-text-muted hover:border-forge-accent/40 hover:text-forge-accent"
+                  >
+                    {'↻'} Re-run
+                  </button>
                 )}
                 <button
                   type="button"

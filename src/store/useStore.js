@@ -412,6 +412,101 @@ export const useStore = create((set, get) => ({
     }
   },
 
+  // ─── Bug write helpers ────────────────────────────────────────────
+  // BugCard's Assign / Status / Comment buttons reference these actions.
+  // Each one reads the latest bug from disk (in case chokidar has changed
+  // it since we last loaded), mutates, strips the Steward's _steward
+  // origin tag (so chokidar fires for the post-mutate state — without
+  // this, loop-breaker #1 in studio-write.js would silently swallow our
+  // edit and the rule wouldn't re-fire), writes back, and optimistically
+  // patches state for snappy UI.
+  _writeBugFile: async (bug) => {
+    const api = window.electronAPI?.hq;
+    if (!api?.writeFile) return { ok: false, error: 'hq.writeFile unavailable' };
+    if (!bug?._filePath) return { ok: false, error: 'bug has no _filePath' };
+    // Don't persist the in-memory _filePath stamp — it's a renderer-only field.
+    // Strip _steward so the next chokidar event isn't filtered as
+    // Steward-authored (we want the engine to re-evaluate on Re-run, etc).
+    const { _filePath, _steward, ...persistable } = bug;
+    persistable.updatedAt = new Date().toISOString();
+    return await api.writeFile(_filePath, JSON.stringify(persistable, null, 2));
+  },
+
+  assignBug: async (bugId, agentName) => {
+    const bug = get().bugs.find(b => b.id === bugId);
+    if (!bug) return { ok: false, error: 'bug not in store' };
+    const next = { ...bug, assignedTo: agentName || null };
+    const result = await get()._writeBugFile(next);
+    if (result.ok) {
+      // Optimistic update; loadBugs will reconcile on next refresh
+      set(state => ({
+        bugs: state.bugs.map(b => b.id === bugId ? { ...b, assignedTo: next.assignedTo } : b),
+      }));
+    }
+    return result;
+  },
+
+  setBugStatus: async (bugId, status) => {
+    const bug = get().bugs.find(b => b.id === bugId);
+    if (!bug) return { ok: false, error: 'bug not in store' };
+    const next = { ...bug, status };
+    const result = await get()._writeBugFile(next);
+    if (result.ok) {
+      set(state => ({
+        bugs: state.bugs.map(b => b.id === bugId ? { ...b, status } : b),
+      }));
+    }
+    return result;
+  },
+
+  addBugComment: async (bugId, { author, text, kind }) => {
+    if (!text || typeof text !== 'string') return { ok: false, error: 'empty comment' };
+    const bug = get().bugs.find(b => b.id === bugId);
+    if (!bug) return { ok: false, error: 'bug not in store' };
+    const comment = {
+      author: author || 'Boss',
+      text,
+      timestamp: new Date().toISOString(),
+      ...(kind ? { kind } : {}),
+    };
+    const next = { ...bug, comments: [...(bug.comments || []), comment] };
+    const result = await get()._writeBugFile(next);
+    if (result.ok) {
+      set(state => ({
+        bugs: state.bugs.map(b => b.id === bugId
+          ? { ...b, comments: [...(b.comments || []), comment] }
+          : b),
+      }));
+    }
+    return result;
+  },
+
+  // Re-run the bug auto-fix engine. Sets autoFixRequested:true and clears
+  // the autoFixAttempted gate, so the engine re-evaluates on the next
+  // chokidar event (it fires on the file write below). Used for bugs that
+  // failed for infrastructure reasons (claude binary missing, verifyCommand
+  // not configured, etc.) — boss fixes the underlying cause and clicks
+  // Re-run rather than re-filing the bug.
+  retryBugAutoFix: async (bugId) => {
+    const bug = get().bugs.find(b => b.id === bugId);
+    if (!bug) return { ok: false, error: 'bug not in store' };
+    const next = {
+      ...bug,
+      autoFixRequested: true,
+      autoFixAttempted: false,
+      // Don't clear assignedTo / severity / etc — only the auto-fix gates.
+    };
+    const result = await get()._writeBugFile(next);
+    if (result.ok) {
+      set(state => ({
+        bugs: state.bugs.map(b => b.id === bugId
+          ? { ...b, autoFixRequested: true, autoFixAttempted: false }
+          : b),
+      }));
+    }
+    return result;
+  },
+
   // Bug Feedback Loop — interactive session path. Routes through
   // executeFridayCommand's spawn-agent dispatch so the bug instruction
   // lands in a normal Friday PTY tab. Cap-aware: if too many agents are
