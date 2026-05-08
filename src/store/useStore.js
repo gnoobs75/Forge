@@ -412,6 +412,30 @@ export const useStore = create((set, get) => ({
     }
   },
 
+  // Bug Feedback Loop — interactive session path. Routes through
+  // executeFridayCommand's spawn-agent dispatch so the bug instruction
+  // lands in a normal Friday PTY tab. Cap-aware: if too many agents are
+  // already running, the main process queues the bug session and drains
+  // it on the next PTY exit.
+  spawnBugSession: async (bugId) => {
+    if (!window.electronAPI?.bugs?.spawnSession) {
+      console.warn('[bugs] spawnBugSession: electronAPI.bugs not available');
+      return { ok: false, status: 'error', error: 'IPC unavailable' };
+    }
+    try {
+      const result = await window.electronAPI.bugs.spawnSession(bugId);
+      if (!result?.ok) {
+        console.warn('[bugs] spawnBugSession failed:', result?.error || 'unknown');
+      } else if (result.status === 'queued') {
+        console.log(`[bugs] ${bugId} queued (depth: ${result.queueDepth})`);
+      }
+      return result;
+    } catch (err) {
+      console.warn('[bugs] spawnBugSession threw:', err);
+      return { ok: false, status: 'error', error: err?.message || String(err) };
+    }
+  },
+
   // Optimistic flip of a rec's overnight_eligible flag. The IPC handler
   // updates the file on disk; the rec loader will re-pull on next refresh.
   setRecEligibility: async (filePath, eligible) => {

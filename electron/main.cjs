@@ -321,6 +321,16 @@ function createTerminal(scopeId, cols, rows, repoPath) {
 ipcMain.on('terminal:create-implementation', (event, { scopeId, cols, rows, cwd, prompt, flags, mode, modelFlag, agentSlug, projectSlug, recommendationId }) => {
   console.log(`[Forge] terminal:create-implementation scope="${scopeId}" mode=${mode} cwd=${cwd} agent=${agentSlug || 'none'} project=${projectSlug || 'none'} rec=${recommendationId || 'none'} model=${modelFlag || 'default'}`);
 
+  if (!cwd || !fs.existsSync(cwd)) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:data', { scopeId,
+        data: `\r\n\x1b[31m[Forge] implementation launch failed: cwd not found (${cwd || '<empty>'}).\x1b[0m\r\n` +
+              `\x1b[33mCheck the project's repoPath in hq-data/projects/${projectSlug || '<slug>'}/project.json — the path must exist on disk before agents can run there.\x1b[0m\r\n` });
+      mainWindow.webContents.send('terminal:exit', { scopeId, exitCode: 1 });
+    }
+    return;
+  }
+
   // Write prompt to temp file to avoid shell escaping issues
   const tmpFile = path.join(os.tmpdir(), `forge-${scopeId}.md`);
   fs.writeFileSync(tmpFile, prompt, 'utf-8');
@@ -2192,6 +2202,17 @@ function executeFridayCommand(commandId, command, args) {
           exitCode,
           scopeId,
         });
+        // Drain any queued bug sessions waiting for an agent slot.
+        try {
+          drainBugSessionQueue({
+            dataDir: PATHS.hqData,
+            dispatch: executeFridayCommand,
+            activeCount: activeAgentPtyCount,
+            agentCap: 8,
+          });
+        } catch (err) {
+          console.error('[Forge] drainBugSessionQueue error:', err?.message || err);
+        }
       });
 
       // Auto-launch claude with agent skill — write instruction to temp file to avoid shell quoting issues
@@ -2384,6 +2405,41 @@ function executeFridayCommand(commandId, command, args) {
       console.warn(`[Forge Friday] Unknown command: ${command}`);
   }
 }
+
+// ─── Bug Auto-Fix Loop — interactive Open Session path ───
+// The Steward's bug-filed-attempt-fix rule handles the headless auto-fix
+// path. This IPC is the boss-driven path: BugCard's "Open Session" button
+// invokes bug:spawn-session, we route through executeFridayCommand's
+// spawn-agent dispatch so the bug instruction lands in a normal Friday
+// PTY tab the boss can chat into.
+const { spawnBugSession, drainBugSessionQueue, getBugSessionQueueDepth } = require('./bugs-session-io.cjs');
+
+// Cap only counts agent-spawn PTYs (friday-* and agent-session-* scopes),
+// not user terminals or steward forks. Without this, opening a few
+// terminals would silently queue every bug session.
+function activeAgentPtyCount() {
+  let n = 0;
+  for (const scope of ptyProcesses.keys()) {
+    if (typeof scope === 'string' && (scope.startsWith('friday-') || scope.startsWith('agent-'))) {
+      n += 1;
+    }
+  }
+  return n;
+}
+
+ipcMain.handle('bug:spawn-session', async (event, { bugId }) => {
+  const result = await spawnBugSession({
+    dataDir: PATHS.hqData,
+    bugId,
+    dispatch: executeFridayCommand,
+    activeCount: activeAgentPtyCount,
+    agentCap: 8,
+  });
+  console.log(`[Forge] bug:spawn-session ${bugId} → ${result.status}${result.error ? ' err=' + result.error : ''}`);
+  return result;
+});
+
+ipcMain.handle('bug:queue-depth', async () => ({ depth: getBugSessionQueueDepth() }));
 
 // Handle confirmation responses from renderer
 ipcMain.on('friday:command-respond', (event, { commandId, approved }) => {

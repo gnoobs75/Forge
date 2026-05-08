@@ -100,6 +100,24 @@ export default function BugCard({ bug, showProject = false }) {
     [bug.id, commentDraft]
   );
 
+  const [sessionStatus, setSessionStatus] = useState(null); // null | 'opening' | 'queued' | 'error'
+  const onOpenSession = useCallback(async () => {
+    if (!bug.assignedTo) return;
+    setSessionStatus('opening');
+    try {
+      const result = await useStore.getState().spawnBugSession(bug.id);
+      if (!result?.ok) setSessionStatus('error');
+      else if (result.status === 'queued') setSessionStatus('queued');
+      else setSessionStatus(null);
+    } catch {
+      setSessionStatus('error');
+    }
+    // Auto-clear non-error states after 2s; let errors linger.
+    if (sessionStatus !== 'error') {
+      setTimeout(() => setSessionStatus(null), 2000);
+    }
+  }, [bug.id, bug.assignedTo, sessionStatus]);
+
   return (
     <div
       data-testid={`bug-card-${bug.id}`}
@@ -376,6 +394,34 @@ export default function BugCard({ bug, showProject = false }) {
             {bug.recommendationId && (
               <div className="text-[11px] text-forge-text-muted font-mono">
                 → rec: <span className="text-forge-accent">{bug.recommendationId}</span>
+              </div>
+            )}
+
+            {/* Open Session — interactive boss-driven path. Spawns a Friday
+                agent PTY scoped to this bug with the full instruction
+                pre-loaded. Disabled when unassigned (the engine needs an
+                agent to dispatch to) or when terminal: closed/wontfix. */}
+            {bug.status !== 'closed' && bug.status !== 'wontfix' && (
+              <div className="ml-auto flex items-center gap-2">
+                {sessionStatus === 'queued' && (
+                  <span className="text-[10px] text-forge-text-muted">queued — slot busy</span>
+                )}
+                {sessionStatus === 'error' && (
+                  <span className="text-[10px] text-red-400">spawn failed — see console</span>
+                )}
+                <button
+                  type="button"
+                  onClick={onOpenSession}
+                  disabled={!bug.assignedTo || sessionStatus === 'opening'}
+                  title={!bug.assignedTo
+                    ? 'Assign a Council agent first'
+                    : 'Spawn an interactive Claude session pre-loaded with this bug'}
+                  className="px-3 py-1 text-[11px] font-medium rounded border transition-colors
+                             border-forge-border text-forge-text-primary hover:border-forge-accent/40 hover:text-forge-accent
+                             disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-forge-border disabled:hover:text-forge-text-primary"
+                >
+                  {sessionStatus === 'opening' ? 'Opening…' : 'Open Session'}
+                </button>
               </div>
             )}
           </div>

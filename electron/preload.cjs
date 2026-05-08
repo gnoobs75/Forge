@@ -69,6 +69,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     writeSkill: (fileName, content) => ipcRenderer.invoke('agent:write-skill', fileName, content),
   },
 
+  // Bug Feedback Loop — Open Session path
+  bugs: {
+    spawnSession: (bugId) => ipcRenderer.invoke('bug:spawn-session', { bugId }),
+    queueDepth: () => ipcRenderer.invoke('bug:queue-depth'),
+  },
+
   // Secrets Management
   secrets: {
     getStatus: () => ipcRenderer.invoke('secrets:get-status'),
