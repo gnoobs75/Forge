@@ -1134,6 +1134,28 @@ export const useStore = create((set, get) => ({
     return session;
   },
 
+  // Council multi-select state — per-project list of agent ids the user
+  // has Ctrl+Clicked. Cleared on Assemble or Escape. Not persisted: this
+  // is ephemeral UI state, lost on reload like a text-selection range.
+  councilSelection: {},
+  toggleCouncilAgent: (projectSlug, agentId) => set((state) => {
+    const prev = state.councilSelection[projectSlug] || [];
+    const next = prev.includes(agentId)
+      ? prev.filter(id => id !== agentId)
+      : [...prev, agentId];
+    return {
+      councilSelection: {
+        ...state.councilSelection,
+        [projectSlug]: next,
+      },
+    };
+  }),
+  clearCouncilSelection: (projectSlug) => set((state) => {
+    if (!state.councilSelection[projectSlug]) return {};
+    const { [projectSlug]: _removed, ...rest } = state.councilSelection;
+    return { councilSelection: rest };
+  }),
+
   // Implementation sessions
   startImplementation: (rec, project, mode, approachId) => {
     const existing = get().implementationSessions.find(

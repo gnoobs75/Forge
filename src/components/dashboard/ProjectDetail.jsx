@@ -3,7 +3,6 @@ import { useStore } from '../../store/useStore';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
 import { recDisplayTitle } from '../../utils/rec';
 import { playSound } from '../../utils/sounds';
-import { getAgentBrain, getModelFlag } from '../../utils/brainConfig';
 import RecFileActions from './RecFileActions';
 import ChartRenderer from './ChartRenderer';
 import KnowledgeHub from './KnowledgeHub';
@@ -20,6 +19,7 @@ import ProjectTools from './ProjectTools';
 import ProjectApiSpecs from './ProjectApiSpecs';
 import ProjectMcpTools from './ProjectMcpTools';
 import ProjectBugs, { getOpenBugCount } from './ProjectBugs';
+import CouncilChipRow from '../CouncilChipRow';
 
 const PHASE_LIST = [
   { id: 'discovery', name: 'Discovery' },
@@ -395,46 +395,14 @@ function OverviewContent({ slug, project, phaseColor, phaseAgents, agents, agent
         </div>
       </div>
 
-      {/* Quick Agent Bar */}
-      <div className="card">
-        <h2 className="text-xs font-mono font-semibold text-forge-text-secondary uppercase tracking-wider mb-3 border-l-2 border-forge-accent pl-3">
-          Ask Your Team About {project.name}
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {agents.map((agent) => (
-            <button
-              key={agent.id}
-              onClick={() => {
-                if (window.electronAPI?.terminal) {
-                  const brain = getAgentBrain(agent.id, agentBrains);
-                  const mFlag = getModelFlag(brain);
-                  startAgentSession(agent, project, { modelFlag: mFlag });
-                  playSound('spawn');
-                } else {
-                  setActiveAgent(agent.id);
-                }
-              }}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-forge-border bg-forge-bg/50 text-[10px]
-                         font-medium transition-all hover:scale-105"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = `${agent.color}40`;
-                e.currentTarget.style.backgroundColor = `${agent.color}10`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '';
-                e.currentTarget.style.backgroundColor = '';
-              }}
-              title={`@${agent.name.replace(/\s+/g, '')} — ${agent.role}`}
-            >
-              <div
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: agent.color }}
-              />
-              <span className="text-forge-text-secondary">{agent.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Quick Agent Bar — Ctrl+Click to multi-select; click to spawn single */}
+      <CouncilChipRow
+        project={project}
+        agents={agents}
+        agentBrains={agentBrains}
+        setActiveAgent={setActiveAgent}
+        startAgentSession={startAgentSession}
+      />
 
       {/* Recommendations */}
       <RecommendationsSection
