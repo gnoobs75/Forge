@@ -16,6 +16,7 @@ import { bugFiledAppendTodo } from './built-in-rules/bug-filed-append-todo.js';
 import { bugStatusChangedUpdateHistory } from './built-in-rules/bug-status-changed-update-history.js';
 import { bugClosedFlipTodo } from './built-in-rules/bug-closed-flip-todo.js';
 import { bugCriticalPingChat } from './built-in-rules/bug-critical-ping-chat.js';
+import { commitReferencesRec } from './built-in-rules/commit-references-rec.js';
 
 // Built-in rule registry. Phase 5+ will extend this with file-loaded rules.
 const BUILT_IN_RULES = [
@@ -27,6 +28,7 @@ const BUILT_IN_RULES = [
   bugStatusChangedUpdateHistory,
   bugClosedFlipTodo,
   bugCriticalPingChat,
+  commitReferencesRec,
 ];
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };

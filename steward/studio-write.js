@@ -33,6 +33,13 @@ const DEFAULT_DEBOUNCE_MS = 500;
 const pendingWrites = new Map();   // path → { content, intentUUID, format, repoPath, timer, resolvers: [] }
 const intentBatches = new Map();   // intentUUID → Map<repoPath, Set<absPath>>
 
+// Per-repo commit mutex. Keyed by absolute repoPath. Holds the tail of a
+// promise chain so concurrent commitIntent() calls targeting the same repo
+// run serially through their git add → commit → rev-parse sequence. Without
+// this, two parallel rules firing off the same chokidar event race on
+// `git commit`, and the loser fails with `cannot lock ref 'HEAD'`.
+const repoLocks = new Map();       // repoPath → Promise<void> (last in chain)
+
 // ────────────────────────────────────────────────────────────────────────────
 // Origin tag injection (loop-breaker #1)
 
@@ -178,30 +185,57 @@ export async function commitIntent(intentUUID, message, opts = {}) {
   const results = [];
   for (const [repoPath, pathSet] of repoMap.entries()) {
     const paths = [...pathSet];
-    try {
-      // git -C <repo> add <paths…>
-      const relPaths = paths.map(p => path.relative(repoPath, p));
-      await execFileP('git', ['-C', repoPath, 'add', ...relPaths]);
-      // git -C <repo> commit -m "<msg>" --author "<author>" --no-gpg-sign
-      // Use --allow-empty so a no-op commit doesn't error if files were
-      // already in the previous commit (rare but possible with debounce).
-      const { stdout } = await execFileP('git', [
-        '-C', repoPath,
-        'commit',
-        '-m', fullMessage,
-        '--author', author,
-        '--no-gpg-sign',
-      ]);
-      // Get the SHA we just made
-      const { stdout: sha } = await execFileP('git', ['-C', repoPath, 'rev-parse', 'HEAD']);
-      results.push({ repoPath, paths, sha: sha.trim(), stdout });
-    } catch (err) {
-      results.push({ repoPath, paths, error: err.stderr?.toString() || err.message });
-    }
+    // Serialize through a per-repo mutex: chain this commit onto whatever
+    // commit is already running for this repo, so two rules firing on the
+    // same event can't both hold HEAD at once.
+    const result = await runWithRepoLock(repoPath, async () => {
+      try {
+        const relPaths = paths.map(p => path.relative(repoPath, p));
+        await execFileP('git', ['-C', repoPath, 'add', ...relPaths]);
+        const { stdout } = await execFileP('git', [
+          '-C', repoPath,
+          'commit',
+          '-m', fullMessage,
+          '--author', author,
+          '--no-gpg-sign',
+        ]);
+        const { stdout: sha } = await execFileP('git', ['-C', repoPath, 'rev-parse', 'HEAD']);
+        return { repoPath, paths, sha: sha.trim(), stdout };
+      } catch (err) {
+        return { repoPath, paths, error: err.stderr?.toString() || err.message };
+      }
+    });
+    results.push(result);
   }
 
   intentBatches.delete(intentUUID);
   return { committed: true, intentUUID, message: fullMessage, results };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Per-repo mutex helper
+
+async function runWithRepoLock(repoPath, fn) {
+  const prev = repoLocks.get(repoPath) || Promise.resolve();
+  // `release` resolves the chain link this caller is responsible for —
+  // always called in `finally` so a thrown `fn` doesn't permanently jam the
+  // lock. We never reject the chain (would propagate to next holder).
+  let release;
+  const next = new Promise(r => { release = r; });
+  const myLink = prev.then(() => next);
+  repoLocks.set(repoPath, myLink);
+
+  try { await prev; } catch { /* previous holder errored — proceed */ }
+  try {
+    return await fn();
+  } finally {
+    release();
+    // Best-effort cleanup: if no later caller has chained on top of us,
+    // drop the entry so an idle repo doesn't keep a resolved promise alive.
+    if (repoLocks.get(repoPath) === myLink) {
+      repoLocks.delete(repoPath);
+    }
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -226,4 +260,5 @@ export function _resetForTests() {
   for (const e of pendingWrites.values()) if (e.timer) clearTimeout(e.timer);
   pendingWrites.clear();
   intentBatches.clear();
+  repoLocks.clear();
 }

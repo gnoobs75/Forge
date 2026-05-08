@@ -835,6 +835,24 @@ function startScheduleTimer() {
 // instead of a static git-state.json file — no more stale project references.
 let gitPollTimer = null;
 
+// Git log format: SHA<unit>subject<unit>body<record>
+// %x1f = unit separator, %x1e = record separator. Lets us parse multi-line
+// commit messages without regex gymnastics. Steward rules read full message
+// bodies to match patterns like `Resolves: ARE-014` in trailers.
+const GIT_LOG_FORMAT = '--pretty=format:%H%x1f%s%x1f%b%x1e';
+const COMMITS_PER_POLL_LIMIT = 50; // safety: don't ship a giant payload to the daemon
+
+function parseGitLog(stdout) {
+  if (!stdout || !stdout.trim()) return [];
+  return stdout.split('\x1e')
+    .map(rec => rec.trim())
+    .filter(Boolean)
+    .map(rec => {
+      const [sha, subject = '', body = ''] = rec.split('\x1f');
+      return { sha: sha.trim(), subject: subject.trim(), body: body.trim() };
+    });
+}
+
 function startGitPoller() {
   if (gitPollTimer) return;
   const fsp = require('fs').promises;
@@ -898,8 +916,13 @@ function startGitPoller() {
           if (gitState[slug].lastHead && gitState[slug].lastHead !== currentHead) {
             console.log(`[Forge GitPoller] Change detected in ${slug}: ${gitState[slug].lastHead?.slice(0,8)} → ${currentHead.slice(0,8)}`);
 
-            // Get diff details
-            const commits = await gitExec(`git log --oneline ${gitState[slug].lastHead}..HEAD`, repoPath);
+            // Structured commit log (sha + subject + body) so Steward rules
+            // can grep messages for `Resolves: ARE-XXX` trailers etc.
+            const logRaw = await gitExec(
+              `git log ${GIT_LOG_FORMAT} -n ${COMMITS_PER_POLL_LIMIT} ${gitState[slug].lastHead}..HEAD`,
+              repoPath,
+            );
+            const commits = parseGitLog(logRaw);
             const numstat = await gitExec(`git diff --numstat ${gitState[slug].lastHead}..HEAD`, repoPath);
 
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -912,6 +935,18 @@ function startGitPoller() {
                 numstat,
               });
             }
+
+            // Forward FULL commit array to Steward — this is what the
+            // commit-references-rec rule needs to scan for ABCD-NNNNN IDs.
+            forwardToSteward('automation:git-change', {
+              slug,
+              repoPath,
+              previousHead: gitState[slug].lastHead,
+              currentHead,
+              commitCount: commits.length,
+              commits,
+              numstat,
+            });
           }
 
           gitState[slug].lastHead = currentHead;

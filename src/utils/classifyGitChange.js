@@ -3,12 +3,23 @@
  * Uses commit message keyword matching + diff size heuristics + file path analysis.
  *
  * @param {Object} params
- * @param {string} params.commits - Git log output (commit messages)
+ * @param {string|Array<{sha, subject, body}>} params.commits - Git log output.
+ *   Legacy format was the raw `git log --oneline` string; the post-Steward
+ *   poller switched to structured `[{sha, subject, body}, ...]`. We accept
+ *   both so older callers and tests keep working.
  * @param {string} params.numstat - Git diff --numstat output (added/removed per file)
  * @returns {Object} Classification result
  */
 export function classifyGitChange({ commits, numstat }) {
-  const commitLines = (commits || '').split('\n').filter(Boolean);
+  // Normalize commits to an array of message strings regardless of input shape.
+  let commitLines;
+  if (Array.isArray(commits)) {
+    commitLines = commits
+      .map(c => c?.subject ? `${c.subject}${c.body ? '\n' + c.body : ''}` : '')
+      .filter(Boolean);
+  } else {
+    commitLines = (commits || '').split('\n').filter(Boolean);
+  }
   const statLines = (numstat || '').split('\n').filter(Boolean);
 
   // Parse numstat: "added\tremoved\tfilename"

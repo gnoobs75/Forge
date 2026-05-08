@@ -183,6 +183,33 @@ describe('studio-write — commitIntent (loop-breaker #3)', () => {
     const log = execFileSync('git', ['-C', tmpRepo, 'log', '--pretty=%s'], { encoding: 'utf-8' });
     expect(log).toMatch(/steward: second .*\nsteward: first/);
   });
+
+  it('serializes concurrent commits to the same repo (no HEAD lock race)', async () => {
+    // Reproduces the concurrency bug observed in production: two rules fire
+    // off the same chokidar event, both call commitIntent in parallel, and
+    // the second loses the race with `cannot lock ref 'HEAD'`. With the
+    // per-repo mutex, both commits land cleanly.
+    const i1 = ulid();
+    const i2 = ulid();
+    await studioWrite({ path: path.join(tmpRepo, 'history.json'), content: { entries: [] }, intentUUID: i1, format: 'json', repoPath: tmpRepo, debounceMs: 10 });
+    await studioWrite({ path: path.join(tmpRepo, 'features.json'), content: { features: [] }, intentUUID: i2, format: 'json', repoPath: tmpRepo, debounceMs: 10 });
+    // Fire BOTH commits in parallel — without the mutex, one would lose HEAD lock.
+    const [r1, r2] = await Promise.all([
+      commitIntent(i1, 'append history.json'),
+      commitIntent(i2, 'flip features.json'),
+    ]);
+    expect(r1.committed).toBe(true);
+    expect(r2.committed).toBe(true);
+    expect(r1.results[0].error).toBeUndefined();
+    expect(r2.results[0].error).toBeUndefined();
+    expect(r1.results[0].sha).toMatch(/^[0-9a-f]{40}$/);
+    expect(r2.results[0].sha).toMatch(/^[0-9a-f]{40}$/);
+    expect(r1.results[0].sha).not.toBe(r2.results[0].sha);
+    // Both commits exist in the log
+    const log = execFileSync('git', ['-C', tmpRepo, 'log', '--pretty=%s'], { encoding: 'utf-8' });
+    expect(log).toMatch(/steward: append history\.json/);
+    expect(log).toMatch(/steward: flip features\.json/);
+  });
 });
 
 describe('studio-write — isStewardWrite content sniff', () => {
